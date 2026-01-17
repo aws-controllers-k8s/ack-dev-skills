@@ -28,6 +28,14 @@ This guide helps you work with AWS Controllers for Kubernetes (ACK) - from setti
 - Reference team patterns when relevant
 - Link to similar PRs if helpful
 
+**Working principles:**
+
+1. **Do it right, not fast** - Prefer solving problems correctly over quick-and-dirty shortcuts. Take the time to implement proper solutions even if it's slower.
+
+2. **Ask before committing** - When working interactively, always ask if the developer wants to commit or push. Never commit/push without confirmation.
+
+3. **Use available resources** - Ask if local clones of upstream repos are available before trying to fetch remote content. Developers often have `runtime`, `code-generator`, and other ACK repos cloned locally.
+
 ---
 
 ## Common Workflows
@@ -198,46 +206,35 @@ make test
 1. **Update the generator configuration** (if needed):
    
    Check `generator.yaml` in your service controller for field overrides or custom mappings.
+   
+   **Important:** Only configure fields that need non-default behavior. If a field uses all defaults (mutable, no references, etc.), don't add it to generator.yaml.
 
 2. **Run full code generation:**
    ```bash
-   cd <service>-controller
-   
-   # 1. Generate API types
-   ../code-generator/bin/ack-generate apis <service> \
-     --generator-config-path generator.yaml \
-     --metadata-config-path metadata.yaml \
-     -o . \
-     --refresh-cache=false \
-     --template-dirs ../code-generator/templates
-   
-   # 2. Generate controller code
-   ../code-generator/bin/ack-generate controller <service> \
-     --generator-config-path generator.yaml \
-     --metadata-config-path metadata.yaml \
-     -o . \
-     --refresh-cache=false \
-     --template-dirs ../code-generator/templates \
-     --template-dirs templates \
-     --service-account-name ack-<service>-controller
-   
-   # 3. Generate deepcopy (required after API changes)
+   cd code-generator
    export PATH=$PATH:$(go env GOPATH)/bin
-   controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
-   
-   # 4. Generate CRDs (required for kubectl apply)
-   controller-gen crd:crdVersions=v1 paths="./apis/..." output:crd:artifacts:config=config/crd/bases
-   
-   # 5. Fix imports
-   go run golang.org/x/tools/cmd/goimports@latest -w pkg/
+   SERVICE=<service> AWS_SDK_GO_VERSION=v1.41.0 make build-controller
    ```
    
-   **Why each step:**
-   - `ack-generate apis` - Updates Go types in `apis/v1alpha1/`
-   - `ack-generate controller` - Updates SDK integration in `pkg/resource/`
-   - `controller-gen object` - Updates `zz_generated.deepcopy.go` for Kubernetes
-   - `controller-gen crd` - Updates CRD YAML files for kubectl
-   - `goimports` - Fixes import statements after generation
+   **This single command handles everything:**
+   - Generates API types in `apis/v1alpha1/`
+   - Generates controller code in `pkg/resource/`
+   - Generates deepcopy methods
+   - Generates CRDs in `config/crd/bases/`
+   - Generates RBAC manifests
+   - Generates Helm chart (CRDs in `helm/crds/`, templates, values)
+   - Runs gofmt and go mod tidy
+   
+   **Set AWS_SDK_GO_VERSION explicitly** for reproducibility. This populates `apis/v1alpha1/ack-generate-metadata.yaml`. Use the core SDK version (`github.com/aws/aws-sdk-go-v2`), not the service-specific version.
+   
+   **Always use make build-controller.** It takes ~30 seconds and guarantees consistency. Individual ack-generate commands can leave you with partial state (missing Helm updates, RBAC not regenerated, forgotten deepcopy/CRDs/goimports/go mod tidy).
+   
+   **When to run ack-generate directly (rare):**
+   - Debugging whether an issue is in apis vs controller generation
+   - Quick syntax check of generator.yaml changes: `ack-generate apis` to verify config parses
+   - Always follow up with full `make build-controller` before testing or committing
+   
+   **Never manually edit generated files.** All files in `apis/v1alpha1/`, `pkg/resource/`, `config/crd/`, `config/rbac/`, and `helm/` are generated and will be overwritten.
 
 3. **Check the generated code:**
    ```bash
@@ -338,10 +335,57 @@ spec:
 - **Required fields**: Add validation in CRD or admission webhook
 - **References to other resources**: Use `AWSResourceReferenceWrapper` type
 - **Sensitive data**: Store in Secrets, reference from spec
+- **Immutable fields**: Check AWS API docs carefully - a field being "required" in Update doesn't mean it's mutable. Primary keys and lookup identifiers are almost always immutable.
+- **Nested API responses**: If AWS API wraps the response (e.g., `{ "resource": { ...fields... } }`), add `output_wrapper_field_path` to operations in generator.yaml to avoid bloated status fields.
+
+**Field Immutability - How to Verify:**
+
+A field should be marked `is_immutable: true` if:
+1. AWS API docs say "cannot be changed" or "immutable"
+2. The field is a primary key or lookup identifier (even if required in Update)
+3. Testing with AWS CLI shows the field cannot be updated
+
+**Example:**
+```yaml
+resources:
+  RepositoryCreationTemplate:
+    fields:
+      Prefix:
+        is_primary_key: true
+        is_immutable: true  # Prefix identifies WHICH template, can't change it
+```
+
+**Nested Response Handling:**
+
+Some AWS APIs wrap responses in a nested object. Without configuration, the entire wrapper ends up in Status.
+
+**Check the AWS API response shape:**
+```bash
+aws <service> <operation> help
+# Look for response structure like:
+# {
+#   "resourceName": {
+#     "field1": "value",
+#     ...
+#   }
+# }
+```
+
+**Configure in generator.yaml:**
+```yaml
+operations:
+  CreateResource:
+    output_wrapper_field_path: ResourceName
+  UpdateResource:
+    output_wrapper_field_path: ResourceName
+  DescribeResources:
+    output_wrapper_field_path: ResourceNames  # Note: plural for list operations
+```
 
 **Example from team PRs:**
 - Adding `Tags` field: PR #1234 (s3-controller)
 - Adding cross-resource reference: PR #5678 (ec2-controller)
+- ECR RepositoryCreationTemplate with output_wrapper_field_path: PR #142 (ecr-controller)
 
 ---
 
@@ -411,7 +455,64 @@ spec:
 
 ---
 
-### 5. Adopting Existing AWS Resources
+### 5. Configuring Tags Support
+
+**When to use:** Adding or configuring tag support for a resource.
+
+**Important:** Not all resources support tagging via the TagResource API. Check AWS documentation first.
+
+**How to check if TagResource is supported:**
+
+```bash
+aws <service> tag-resource help
+# Look for: "Currently, the only supported resource is..." or similar language
+```
+
+**Example - ECR:**
+- `Repository` - supports TagResource ✓
+- `RepositoryCreationTemplate` - does NOT support TagResource ✗
+- `PullThroughCacheRule` - does NOT support TagResource ✗
+
+**For resources that support TagResource:**
+
+```yaml
+resources:
+  Repository:
+    tags:
+      ignore: false  # Default, enables tag support
+```
+
+**For resources that do NOT support TagResource:**
+
+```yaml
+resources:
+  RepositoryCreationTemplate:
+    tags:
+      ignore: true  # Disables tag support
+```
+
+**Special case - Tags on created resources:**
+
+Some resources have a field for tags that get applied to OTHER resources they create, not tags on the resource itself.
+
+**Example - ECR RepositoryCreationTemplate:**
+- Has `resourceTags` field
+- These tags are applied to repositories created FROM the template
+- The template itself cannot be tagged
+- Configuration: `tags.ignore: true`
+
+**Testing tag support:**
+
+1. Create resource with tags in spec
+2. Verify tags appear in AWS Console or CLI
+3. Update tags in spec
+4. Verify tags update in AWS
+5. Delete resource
+6. Verify tags are removed with resource
+
+---
+
+### 6. Adopting Existing AWS Resources
 
 **When to use:** User wants ACK to manage an existing AWS resource (not created by ACK).
 
@@ -482,7 +583,7 @@ spec:
 
 ---
 
-### 6. Debugging Controller Issues
+### 7. Debugging Controller Issues
 
 **Example requests:**
 - "@wilder debug why my S3 bucket is stuck in Creating"
@@ -553,7 +654,7 @@ spec:
 
 ---
 
-### 7. Running Tests
+### 8. Running Tests
 
 **When to use:** Before submitting PR, after making changes.
 
@@ -577,13 +678,24 @@ spec:
 
 3. **E2E tests** (real AWS, slow):
    ```bash
+   # Setup Python environment (first time only)
+   cd <service>-controller
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r test/e2e/requirements.txt
+   pip install setuptools  # Required for Python 3.13+ (distutils removed)
+   
+   # Run tests
+   source .venv/bin/activate
    export AWS_ACCOUNT_ID=123456789012
    export AWS_REGION=us-west-2
-   make test-e2e
+   python -m pytest test/e2e/tests/test_<resource>.py -v
    ```
    
    Tests against real AWS services. **Use test accounts only.**
    These are mandatory for new controllers and resources.
+   
+   **Note:** Each bash command runs in a fresh shell, so you need to source the venv each time when running via automation.
 
 **Team testing patterns:**
 
@@ -592,7 +704,30 @@ spec:
 - **Run E2E tests** for new features or AWS API changes
 - **Clean up test resources** - E2E tests should delete what they create
 
-**Writing tests:**
+**Writing E2E tests:**
+
+E2E tests **must check the Synced condition** to verify the K8s resource reaches a synced state:
+
+```python
+from acktest.k8s import condition
+import time
+
+# After create
+time.sleep(CREATE_WAIT_AFTER_SECONDS)
+assert k8s.wait_on_condition(ref, condition.CONDITION_TYPE_RESOURCE_SYNCED, "True", wait_periods=5)
+
+# After update
+time.sleep(UPDATE_WAIT_AFTER_SECONDS)
+assert k8s.wait_on_condition(ref, condition.CONDITION_TYPE_RESOURCE_SYNCED, "True", wait_periods=5)
+```
+
+**Required test coverage:**
+- Create operation
+- Update operation (modify at least one field)
+- Delete operation
+- Synced condition verification after each operation
+
+**Writing unit tests:**
 
 Follow existing test patterns in the codebase:
 ```go
@@ -614,10 +749,11 @@ func TestResourceManager_sdkFind(t *testing.T) {
 - **Flaky tests**: Usually timing issues, add retries or increase timeouts
 - **Test pollution**: Tests affecting each other, ensure proper cleanup
 - **AWS rate limits**: E2E tests hitting API limits, add delays or use mocks
+- **Python venv issues**: Make sure setuptools is installed for Python 3.13+
 
 ---
 
-### 8. Custom Hooks and Templates
+### 9. Custom Hooks and Templates
 
 **When to use:** AWS API behavior requires custom logic that generated code can't handle.
 
@@ -677,7 +813,7 @@ func TestResourceManager_sdkFind(t *testing.T) {
 
 ---
 
-### 9. Code Generation Deep Dive
+### 10. Code Generation Deep Dive
 
 **When to use:** Understanding how code generation works, customizing generation.
 
@@ -731,10 +867,28 @@ AWS API Model → ack-generate → Generated Code
 - **Add validation**: Use kubebuilder markers in custom types
 - **Custom conversion**: Implement in hooks.go
 
+**What files to edit vs. never edit:**
+
+**Edit these:**
+- `generator.yaml` - All resource configuration
+- `templates/hooks/` - Custom hook templates (if needed)
+- `test/e2e/` - E2E tests
+
+**Never edit these (generated and will be overwritten):**
+- `apis/v1alpha1/*.go` - Generated API types
+- `pkg/resource/<resource>/*.go` - Generated SDK code
+- `config/crd/bases/*.yaml` - Generated CRDs
+- `config/rbac/*.yaml` - Generated RBAC
+- `helm/crds/*.yaml` - Generated Helm CRDs
+- `helm/templates/*.yaml` - Generated Helm templates
+- `cmd/controller/main.go` - Generated controller entrypoint
+
+**If you see formatting issues or incorrect code in generated files:** Fix the generator.yaml configuration and regenerate. Don't manually edit.
+
 **Team patterns:**
 - **Minimize customization**: Use generated code when possible
 - **Document overrides**: Comment why custom logic is needed
-- **Keep generator.yaml clean**: Only override when necessary
+- **Keep generator.yaml clean**: Only override when necessary - if a field uses all defaults, don't add it to generator.yaml
 
 ---
 
@@ -750,8 +904,8 @@ When adding a new resource to an existing ACK controller, ensure the PR includes
 | `apis/v1alpha1/` | Generated API types |
 | `pkg/resource/<resource>/` | Generated controller code |
 | `config/crd/bases/` | Generated CRD definitions |
-| `helm/crds/` | Copy of CRD for Helm chart |
-| `helm/values.yaml` | Add to `reconcile.resources` list |
+| `helm/crds/` | Copy of CRD for Helm chart (auto-generated by make build-controller) |
+| `helm/values.yaml` | Add to `reconcile.resources` list (auto-generated by make build-controller) |
 | `test/e2e/tests/test_<resource>.py` | E2E tests (create, update, delete) |
 | `test/e2e/resources/<resource>.yaml` | Test resource template |
 
@@ -760,23 +914,37 @@ When adding a new resource to an existing ACK controller, ensure the PR includes
 ```
 [ ] Resource removed from `ignore.resource_names` in generator.yaml
 [ ] All CRUD operations configured (Create, Read, Update, Delete)
-[ ] Code generated: ack-generate apis + controller
-[ ] CRDs generated: controller-gen crd
-[ ] Deepcopy generated: controller-gen object
+[ ] Code generated from code-generator directory: SERVICE=<svc> AWS_SDK_GO_VERSION=<ver> make build-controller
+[ ] Verify git status shows all expected generated files including Helm
 [ ] Code compiles: go build -o bin/controller ./cmd/controller
-[ ] CRD copied to helm/crds/
-[ ] Resource added to helm/values.yaml reconcile.resources
 [ ] Unit tests added for any custom logic and hooks
 [ ] E2E tests added with create/update/delete coverage
+[ ] E2E tests verify Synced condition after operations
 [ ] Manual testing completed against real AWS resources
+[ ] Commits squashed into single commit with attribution
 ```
+
+### New Resource PR Workflow Summary
+
+1. **Edit only:** `generator.yaml`, `test/e2e/`
+2. **Build:** `cd code-generator && SERVICE=<svc> AWS_SDK_GO_VERSION=<ver> make build-controller`
+3. **Verify:** `git status` shows all expected generated files including Helm
+4. **Test:** `source .venv/bin/activate && pytest test/e2e/tests/test_<resource>.py -v`
+5. **Commit:** Single squashed commit with attribution
+6. **Push:** Force push to PR branch
+
+**Never manually edit generated files. If something's wrong, fix generator.yaml and rebuild.**
 
 ### Common Misses
 
-- **Helm chart not updated** - CRD exists but not in `helm/crds/`, resource not in `values.yaml`
+- **Helm chart not updated** - Should be automatic with make build-controller, verify with git status
 - **E2E tests missing** - Code works but no automated test coverage
 - **Update test missing** - Create/delete tested but not update operations
+- **Synced condition not checked** - E2E tests don't verify resource reaches synced state
 - **SDK version not bumped** - New API fields require newer SDK version in `go.mod`
+- **Tags configuration wrong** - Not all resources support TagResource API, check AWS docs
+- **Field immutability incorrect** - Primary keys marked as mutable, or mutable fields marked immutable
+- **Manual edits to generated files** - Will be overwritten on next generation
 
 ---
 
@@ -795,6 +963,26 @@ When adding a new resource to an existing ACK controller, ensure the PR includes
 - **Explain non-obvious choices** - Add comments for complex logic
 - **Include tests** - Cover new functionality
 - **Follow team feedback** - Learn from previous reviews
+
+### Commit Hygiene
+
+**Squash commits before final push:**
+
+```bash
+git reset --soft <base-commit>
+git commit -m "add support for <Resource> resource
+
+thanks to @original-author for initial PR"
+git push --force origin <branch>
+```
+
+**Why:** Clean history, single commit per feature, easier to review and revert.
+
+**Best practices:**
+- One commit per feature or resource
+- Include attribution for co-authors or original work
+- Use descriptive commit messages
+- Force push to PR branch after squashing
 
 ### Team Patterns
 
