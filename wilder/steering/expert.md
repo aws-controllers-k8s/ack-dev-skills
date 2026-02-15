@@ -387,6 +387,52 @@ operations:
 - Adding cross-resource reference: PR #5678 (ec2-controller)
 - ECR RepositoryCreationTemplate with output_wrapper_field_path: PR #142 (ecr-controller)
 
+**Nested Input Handling (`input_wrapper_field_path`):**
+
+Some AWS APIs also wrap *input* fields in a nested structure. For example, AWS Backup's `CreateBackupPlan` requires a `BackupPlan` wrapper containing the actual plan fields (`BackupPlanName`, `Rules`, etc.).
+
+Without configuration, users would need to nest fields under `spec.backupPlan.backupPlanName`. With `input_wrapper_field_path`, the wrapper's fields are flattened directly into the CRD Spec.
+
+**Configure in generator.yaml:**
+```yaml
+operations:
+  CreateBackupPlan:
+    input_wrapper_field_path: BackupPlan
+    output_wrapper_field_path: BackupPlan
+  UpdateBackupPlan:
+    input_wrapper_field_path: BackupPlan
+    output_wrapper_field_path: BackupPlan
+  GetBackupPlan:
+    output_wrapper_field_path: BackupPlan
+```
+
+**Result:**
+```yaml
+# Without input_wrapper_field_path (nested)
+spec:
+  backupPlan:
+    backupPlanName: my-plan
+    rules: [...]
+
+# With input_wrapper_field_path (flattened)
+spec:
+  name: my-plan
+  rules: [...]
+```
+
+**How it works internally:**
+- During CRD construction (`model.go`), the wrapper's member fields are added to Spec instead of the wrapper itself. Fields outside the wrapper are excluded (consistent with `output_wrapper_field_path` behavior).
+- During code generation (`set_sdk.go`), a wrapper struct variable (`fw`) is created, populated from Spec fields, then assigned to the input shape's wrapper field (e.g., `res.BackupPlan = fw`).
+- The `getWrapperShape` function in `crd.go` handles both input and output unwrapping, including list-of-structure wrappers.
+
+**Current limitations:**
+- Only structure wrappers are supported at the top level in `model.go` during CRD construction
+- Nested paths (e.g., `a.b.c` where `b` is a list) could be extended in a future PR
+- The code-generation side (`crd.go`) already handles list types via `getWrapperShape`
+
+**Example from team PRs:**
+- Backup BackupPlan with input_wrapper_field_path: PR #657 (code-generator)
+
 ---
 
 ### 4. Implementing Cross-Resource References
@@ -999,6 +1045,126 @@ AWS API Model → ack-generate → Generated Code
 - **Minimize customization**: Use generated code when possible
 - **Document overrides**: Comment why custom logic is needed
 - **Keep generator.yaml clean**: Only override when necessary - if a field uses all defaults, don't add it to generator.yaml
+
+---
+
+### 11. Contributing to the Code-Generator
+
+**When to use:** Adding new features or fixing bugs in the code-generator itself (not a service controller).
+
+**Code-generator test patterns:**
+
+The code-generator has two main test categories with distinct file conventions:
+
+1. **Model tests** (`pkg/model/model_<service>_test.go`):
+   - Test CRD structure: field flattening, spec/status assignment, wrapper unwrapping
+   - One file per service (e.g., `model_backup_test.go`, `model_memorydb_test.go`)
+   - Verify the model layer correctly interprets generator.yaml + AWS API model
+
+2. **Code generation tests** (`pkg/generate/code/set_sdk_test.go`):
+   - Test the actual rendered Go code output
+   - All services' tests go in the single `set_sdk_test.go` file
+   - Call renderer functions (e.g., `code.SetSDK(...)`) and assert the generated code string
+   - Verify nil checks, type conversions, and wrapper struct assignment
+
+**When adding a new feature, add both:**
+- Model test: verify the CRD is constructed correctly
+- Code gen test: verify the generated Go code is correct and safe (nil checks, type references)
+
+**Test data setup:**
+
+Each service needs test fixtures:
+```
+pkg/testdata/
+├── codegen/sdk-codegen/aws-models/<service>.json   # AWS API model
+└── models/apis/<service>/0000-00-00/generator.yaml  # Test generator config
+```
+
+**Running tests:**
+```bash
+make -C code-generator test
+```
+
+This runs all tests including model and code generation tests (~90 seconds).
+
+**OriginalShapeName awareness:**
+
+The code-generator applies "stutter removal" to shape names (e.g., `BackupBackupPlanInput` → `BackupPlanInput`) for cleaner CRD types. However, when generating code that constructs SDK types, you must use the original AWS SDK shape name.
+
+The `OriginalShapeName` field on shapes stores the pre-rename name. In `varEmptyConstructorSDKType()`, always check `shape.OriginalShapeName` when building SDK type references:
+```go
+// Correct: uses original SDK name
+if shape.Type == "structure" && shape.OriginalShapeName != "" {
+    goType = "svcsdktypes." + shape.OriginalShapeName
+}
+```
+
+Without this, generated code would reference non-existent SDK types when stutter removal has renamed them.
+
+**PR workflow for code-generator changes:**
+
+1. Create feature branch from `main`
+2. Add test fixtures (API model JSON + generator.yaml)
+3. Add model tests and code gen tests
+4. Implement the feature
+5. Run `make test` to verify all tests pass
+6. Squash to single commit, rebase on main before final push
+7. After merge, service controllers can use the new feature by building with the new code-generator version
+
+**Building a service controller against local code-generator changes:**
+
+When testing code-generator changes against a real controller:
+```bash
+# From code-generator directory, build the service controller
+SERVICE=backup make build-controller
+```
+
+This uses your local code-generator code to generate the controller, so you can verify end-to-end behavior before merging.
+
+---
+
+## ACK PR Ordering for New Controllers
+
+When building a new ACK controller or adding multiple resources, PRs should be submitted in a specific order. Each PR builds on the previous one and should be merged before the next is submitted.
+
+**PR sequence:**
+
+1. **Bootstrap PR** - Initial controller scaffolding
+   - `generator.yaml` with resource names in `ignore.resource_names` (all ignored initially)
+   - Generated boilerplate: `go.mod`, `cmd/controller/main.go`, base templates
+   - Helm chart skeleton
+   - No resources yet - just the empty controller
+
+2. **Controller implementation PR** - Core controller setup
+   - Any shared custom hooks or utilities
+   - E2E test infrastructure (`test/e2e/__init__.py`, `conftest.py`, etc.)
+   - RBAC and service-level configuration
+
+3. **Resource PRs (one per resource)** - Each resource gets its own PR
+   - Remove resource from `ignore.resource_names`
+   - Add resource config to `generator.yaml` (fields, renames, hooks, tags)
+   - Regenerate: `SERVICE=<svc> make build-controller`
+   - Add E2E tests for that resource
+   - Each PR is self-contained and reviewable independently
+
+**Why this order matters:**
+- Reviewers can focus on one resource at a time
+- Each PR is smaller and easier to review
+- Resources can be merged incrementally as they pass review
+- If one resource has issues, it doesn't block others
+
+**Example from team:**
+- ECR controller: Bootstrap → Controller impl → Repository (existing) → PullThroughCacheRule → RepositoryCreationTemplate (PR #142)
+
+**Building against a specific code-generator version:**
+
+For controller PRs, always build against the exact code-generator release tag, not `main`:
+```bash
+git -C code-generator checkout v0.57.0
+SERVICE=ecr AWS_SDK_GO_VERSION=v1.41.0 make -C code-generator build-controller
+```
+
+This ensures `ack-generate-metadata.yaml` shows the correct version and build hash. Building from `main` (even if it's only 1 commit ahead of the tag) will produce a different build hash and version string.
 
 ---
 
