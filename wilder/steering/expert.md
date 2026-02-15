@@ -478,22 +478,18 @@ When building a new ACK controller or adding multiple resources, PRs should be s
 
 **PR sequence:**
 
-1. **Bootstrap PR** - Initial controller scaffolding
-   - `generator.yaml` with all resource names in `ignore.resource_names`
+1. **Bootstrap PR** - Initial controller scaffolding (code generation with all resources in `ignore.resource_names`)
+   - `generator.yaml` with all resource names ignored
    - Generated boilerplate: `go.mod`, `cmd/controller/main.go`, base templates
-   - Helm chart skeleton
+   - Helm chart skeleton, E2E test infrastructure
    - No resources yet
 
-2. **Controller implementation PR** - Core controller setup
-   - Shared custom hooks or utilities
-   - E2E test infrastructure (`test/e2e/__init__.py`, `conftest.py`, etc.)
-   - RBAC and service-level configuration
-
-3. **Resource PRs (one per resource)** - Each resource gets its own PR
+2. **Resource PRs (one per resource)** - Each resource gets its own PR
    - Remove resource from `ignore.resource_names`
    - Add resource config to `generator.yaml`
    - Regenerate: `SERVICE=<svc> make build-controller`
    - Add E2E tests for that resource
+   - Add custom hooks if needed
 
 **Why this order:** Reviewers focus on one resource at a time, PRs are smaller, resources merge independently.
 
