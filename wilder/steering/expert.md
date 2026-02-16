@@ -480,8 +480,11 @@ When building a new ACK controller or adding multiple resources, PRs should be s
 
 1. **Bootstrap PR** - Initial controller scaffolding (code generation with all resources in `ignore.resource_names`)
    - `generator.yaml` with all resource names ignored
+   - `metadata.yaml` with service info
    - Generated boilerplate: `go.mod`, `cmd/controller/main.go`, base templates
    - Helm chart skeleton, E2E test infrastructure
+   - `.gitignore` (not generated — copy from another controller)
+   - `README.md` updated with service name (follow existing controller format)
    - No resources yet
 
 2. **Resource PRs (one per resource)** - Each resource gets its own PR
