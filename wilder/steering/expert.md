@@ -380,6 +380,31 @@ if shape.Type == "structure" && shape.OriginalShapeName != "" {
 
 Without this, generated code would reference non-existent SDK types when stutter removal has renamed them.
 
+This applies to map value types too. When a map's values are structures, `varEmptyConstructorSDKType()` must check `shape.ValueRef.Shape.OriginalShapeName` for the value type:
+```go
+} else if shape.ValueRef.Shape.Type == "structure" {
+    valueShapeName := shape.ValueRef.ShapeName
+    if shape.ValueRef.Shape.OriginalShapeName != "" {
+        valueShapeName = shape.ValueRef.Shape.OriginalShapeName
+    }
+    goType = "map[string]svcsdktypes." + valueShapeName
+}
+```
+
+**BadDefaultsAssignment map (`pkg/apiv2/remove_defaults.go`):**
+
+The AWS SDK Go v2 has a `RemoveDefaults` customization that strips default values from Smithy shapes where the default conflicts with range constraints (e.g., a default of 0 on a field with `@range(min: 1)`). This makes those fields nillable (pointers) in the generated SDK code.
+
+ACK mirrors this in `BadDefaultsAssignment` — a map of service name → member names that need pointer treatment. If a field is in this map but ACK doesn't treat it as a pointer, you get type errors like:
+
+> `cannot use &f9valiter.WorkerCount (value of type **int64) as *int64 value in assignment`
+
+**Critical gotcha:** The map keys must use Go struct member names, not Smithy shape names. These can differ (e.g., Smithy shape `WorkerCounts` → Go member `WorkerCount`). To find the correct name:
+1. Check the SDK source: `codegen/sdk-codegen/aws-models/<service>.json` in [aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2)
+2. Look at the generated Go types in the SDK package to confirm the member name
+
+**Example PR:** code-generator PR #671 (fixed `WorkerCounts` → `WorkerCount` for EMR Serverless)
+
 **PR workflow for code-generator changes:**
 
 1. Create feature branch from `main`
