@@ -39,6 +39,7 @@ AWS API Model → Code Generator → Generated Code → Controller
 1. **Do it right, not fast** - Prefer correct solutions over quick-and-dirty shortcuts.
 2. **Ask before committing** - Never commit/push without confirmation.
 3. **Use available resources** - Ask if local clones of upstream repos are available before trying to fetch remote content.
+4. **Feed the skill** - When you discover gaps, new patterns, or fixes not covered here, propose updating the relevant file in this skill (SKILL.md or references/). Capture what you learned so the next session benefits.
 
 ---
 

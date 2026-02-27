@@ -19,46 +19,56 @@ The guidance is distilled from ACK team practices, code reviews, and 84k+ docume
 
 ## Installation
 
+Neither Kiro nor Claude have automated skill updates (yet). The recommended approach is to clone this repo and symlink the skill. This way `git pull` keeps the skill up-to-date automatically.
+
+```bash
+git clone https://github.com/aws-controllers-k8s/wilder.git
+```
+
+Probably land this clone where your ACK dev environment is, so it's a peer to codegen and friends and you can easily add observations and updates as part of your regular workflow. 
+
 ### Kiro IDE
 
+Symlink for auto-updates:
+```bash
+ln -s /path/to/wilder/skills/ack-dev ~/.kiro/skills/ack-dev
+```
+
+Or import via the UI:
 1. Open the Agent Steering & Skills panel
 2. Click **+** > **Import a skill**
 3. Enter: `https://github.com/aws-controllers-k8s/wilder/tree/main/skills/ack-dev`
 
-Or import from a local clone by selecting the `skills/ack-dev/` directory.
+Note: UI import copies a snapshot. Re-import to update.
 
 ### Kiro CLI
 
-Copy the skill into your workspace or global skills directory:
-
 ```bash
-# Workspace (this project only)
-cp -r /path/to/wilder/skills/ack-dev .kiro/skills/
+# Global (all projects, auto-updates with git pull)
+ln -s /path/to/wilder/skills/ack-dev ~/.kiro/skills/ack-dev
 
-# Global (all projects)
+# Or alternatively just copy once
 cp -r /path/to/wilder/skills/ack-dev ~/.kiro/skills/
 ```
 
 ### Claude Code
 
-Copy the skill into your workspace or global skills directory:
-
 ```bash
-# Global (all projects)
-cp -r /path/to/wilder/skills/ack-dev ~/.claude/skills/
+# Global (all projects, auto-updates with git pull)
+ln -s /path/to/wilder/skills/ack-dev ~/.claude/skills/ack-dev
 
-# Workspace (this project only)
-cp -r /path/to/wilder/skills/ack-dev .claude/skills/
+# Or alternatively just copy once
+cp -r /path/to/wilder/skills/ack-dev ~/.claude/skills/
 ```
 
-Or run with the plugin flag for testing:
+Or run with the plugin flag (always uses latest from your clone):
 ```bash
 claude --plugin-dir /path/to/wilder
 ```
 
 ### Other Tools (Cursor, Gemini CLI, etc.)
 
-Copy the `skills/ack-dev/` directory into your tool's skill location. The skill follows the open [Agent Skills](https://agentskills.io) standard.
+Symlink or copy the `skills/ack-dev/` directory into your tool's skill location. The skill follows the open [Agent Skills](https://agentskills.io) standard.
 
 ## Usage
 
