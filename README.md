@@ -41,15 +41,19 @@ cp -r /path/to/wilder/skills/ack-dev ~/.kiro/skills/
 
 ### Claude Code
 
-**As a plugin:**
+Copy the skill into your workspace or global skills directory:
+
 ```bash
-# From your ACK project directory
-claude --plugin-dir /path/to/wilder
+# Global (all projects)
+cp -r /path/to/wilder/skills/ack-dev ~/.claude/skills/
+
+# Workspace (this project only)
+cp -r /path/to/wilder/skills/ack-dev .claude/skills/
 ```
 
-**Or copy the skill directly:**
+Or run with the plugin flag for testing:
 ```bash
-cp -r /path/to/wilder/skills/ack-dev ~/.claude/skills/
+claude --plugin-dir /path/to/wilder
 ```
 
 ### Other Tools (Cursor, Gemini CLI, etc.)
