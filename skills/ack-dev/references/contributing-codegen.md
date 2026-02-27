@@ -41,19 +41,9 @@ make -C code-generator test
 
 This runs all tests including model and code generation tests (~90 seconds).
 
-## OriginalShapeName Awareness
+## OriginalShapeName and BadDefaultsAssignment
 
-The code-generator applies "stutter removal" to shape names (e.g., `BackupBackupPlanInput` -> `BackupPlanInput`) for cleaner CRD types. However, when generating code that constructs SDK types, you must use the original AWS SDK shape name.
-
-The `OriginalShapeName` field on shapes stores the pre-rename name. In `varEmptyConstructorSDKType()`, always check `shape.OriginalShapeName` when building SDK type references:
-
-```go
-if shape.Type == "structure" && shape.OriginalShapeName != "" {
-    goType = "svcsdktypes." + shape.OriginalShapeName
-}
-```
-
-Without this, generated code would reference non-existent SDK types when stutter removal has renamed them.
+See [code-generation.md](code-generation.md) for details on stutter removal, `OriginalShapeName`, and the `BadDefaultsAssignment` map. These are critical when working on `varEmptyConstructorSDKType()` or adding new services to the bad defaults map.
 
 ## PR Workflow for Code-Generator Changes
 

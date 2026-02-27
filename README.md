@@ -19,13 +19,25 @@ The guidance is distilled from ACK team practices, code reviews, and 84k+ docume
 
 ## Installation
 
-### Kiro (IDE or CLI)
+### Kiro IDE
 
 1. Open the Agent Steering & Skills panel
 2. Click **+** > **Import a skill**
 3. Enter: `https://github.com/aws-controllers-k8s/wilder/tree/main/skills/ack-dev`
 
 Or import from a local clone by selecting the `skills/ack-dev/` directory.
+
+### Kiro CLI
+
+Copy the skill into your workspace or global skills directory:
+
+```bash
+# Workspace (this project only)
+cp -r /path/to/wilder/skills/ack-dev .kiro/skills/
+
+# Global (all projects)
+cp -r /path/to/wilder/skills/ack-dev ~/.kiro/skills/
+```
 
 ### Claude Code
 
