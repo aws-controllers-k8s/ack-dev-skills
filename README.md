@@ -1,10 +1,10 @@
 # Wilder
 
-A [Kiro Power](https://kiro.dev/docs/powers/) providing development guidance for [AWS Controllers for Kubernetes (ACK)](https://aws-controllers-k8s.github.io/community/).
+Development guidance for [AWS Controllers for Kubernetes (ACK)](https://aws-controllers-k8s.github.io/community/), packaged as an [Agent Skill](https://agentskills.io) for use with Kiro, Claude Code, Cursor, and other compatible AI tools.
 
 ## What is this?
 
-Wilder is a Knowledge Base Power that gives Kiro contextual expertise for ACK development tasks:
+Wilder gives AI agents contextual expertise for ACK development tasks:
 
 - Setting up ACK development environments
 - Creating new controllers from scratch
@@ -12,55 +12,74 @@ Wilder is a Knowledge Base Power that gives Kiro contextual expertise for ACK de
 - Adding fields to CRDs with proper code generation
 - Implementing cross-resource references
 - Writing custom hooks and templates
+- Writing E2E tests
 - Debugging controller issues
-- Updating documentation and tooling
 
-The guidance is distilled from ACK team practices, code reviews, and 84k+ documents including over 5k PRs and 5 years of Slack discussions.
+The guidance is distilled from ACK team practices, code reviews, and 84k+ documents including over 5k PRs and 5 years of Slack discussions. If you find gaps, updates, or suggestions in the guidance, PRs are welcome! This is a team sport.
 
 ## Installation
 
-In Kiro IDE:
-1. Open the Powers panel
-2. Click "Add from GitHub"
-3. Enter: `https://github.com/aws-controllers-k8s/wilder/wilder`
+### Kiro (IDE or CLI)
 
-Or add from local path during development:
-1. Open the Powers panel
-2. Click "Add from Local Path"
-3. Select the `wilder/` directory in this repo
+1. Open the Agent Steering & Skills panel
+2. Click **+** > **Import a skill**
+3. Enter: `https://github.com/aws-controllers-k8s/wilder/tree/main/skills/ack-dev`
+
+Or import from a local clone by selecting the `skills/ack-dev/` directory.
+
+### Claude Code
+
+**As a plugin:**
+```bash
+# From your ACK project directory
+claude --plugin-dir /path/to/wilder
+```
+
+**Or copy the skill directly:**
+```bash
+cp -r /path/to/wilder/skills/ack-dev ~/.claude/skills/
+```
+
+### Other Tools (Cursor, Gemini CLI, etc.)
+
+Copy the `skills/ack-dev/` directory into your tool's skill location. The skill follows the open [Agent Skills](https://agentskills.io) standard.
 
 ## Usage
 
-Once installed, invoke Wilder with `@wilder` in Kiro:
+Once installed, the skill activates automatically when your request matches ACK development tasks:
 
 ```
-@wilder add DatabaseName field to RDS Instance CRD
-@wilder create a new controller for AWS Backup
-@wilder debug why my S3 bucket is stuck in Creating
-@wilder add the repo creation template resource to the ECR controller
+Add the DatabaseName field to the RDS Instance CRD
+Create a new controller for AWS Backup
+Debug why my S3 bucket is stuck in Creating
+Add the RepositoryCreationTemplate resource to the ECR controller
 ```
 
 ## Contributing
 
-This power is maintained by the ACK team and updated based on real development experience.
+This skill is maintained by the ACK team and updated based on real development experience.
 
 **To contribute:**
-1. Clone this repo local to your dev environment
+1. Clone this repo
 2. Use Wilder during your ACK development work
 3. Note gaps or opportunities for better guidance
-4. Document learnings in a markdown file
-5. Use Kiro to merge any useful findings into your clone `wilder/steering/expert.md`
-6. Submit a PR with proposed updates to the wilder repo
+4. Update the relevant file in `skills/ack-dev/` (SKILL.md or references/)
+5. Submit a PR with proposed updates
 
-We periodically incorporate learnings from controller development, customer feedback, and team discussions.
+We incorporate learnings from controller development, customer feedback, and team discussions to continually improve our outcomes.
 
 ## Structure
 
 ```
-wilder/              # Kiro Power directory (point Kiro here)
-├── POWER.md         # Power metadata and overview
-└── steering/
-    └── expert.md    # Development workflows and guidance
+skills/ack-dev/                # Agent Skill directory
+├── SKILL.md                   # Core instructions and common workflows
+└── references/
+    ├── environment-setup.md   # Dev environment setup
+    ├── code-generation.md     # Code-gen internals and wrapper handling
+    ├── testing.md             # E2E test patterns and file structure
+    ├── contributing-codegen.md # Contributing to the code-generator
+    ├── pr-workflow.md         # PR ordering and review guidance
+    └── troubleshooting.md     # Common issues, debugging, resources
 ```
 
 ## License
