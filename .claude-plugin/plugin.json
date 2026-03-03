@@ -1,0 +1,7 @@
+{
+  "name": "wilder",
+  "version": "1.0.0",
+  "description": "ACK development guidance for building AWS Controllers for Kubernetes",
+  "repository": "https://github.com/aws-controllers-k8s/wilder",
+  "license": "Apache-2.0"
+}
