@@ -22,7 +22,7 @@ The guidance is distilled from ACK team practices, code reviews, and 84k+ docume
 Neither Kiro nor Claude have automated skill updates (yet). The recommended approach is to clone this repo and symlink the skill. This way `git pull` keeps the skill up-to-date automatically.
 
 ```bash
-git clone https://github.com/aws-controllers-k8s/wilder.git
+git clone https://github.com/aws-controllers-k8s/ack-dev-context.git
 ```
 
 Probably land this clone where your ACK dev environment is, so it's a peer to codegen and friends and you can easily add observations and updates as part of your regular workflow. 
@@ -31,13 +31,13 @@ Probably land this clone where your ACK dev environment is, so it's a peer to co
 
 Symlink for auto-updates:
 ```bash
-ln -s /path/to/wilder/skills/ack-dev ~/.kiro/skills/ack-dev
+ln -s /path/to/ack-dev-context/skills/ack-dev ~/.kiro/skills/ack-dev
 ```
 
 Or import via the UI:
 1. Open the Agent Steering & Skills panel
 2. Click **+** > **Import a skill**
-3. Enter: `https://github.com/aws-controllers-k8s/wilder/tree/main/skills/ack-dev`
+3. Enter: `https://github.com/aws-controllers-k8s/ack-dev-context/tree/main/skills/ack-dev`
 
 Note: UI import copies a snapshot. Re-import to update.
 
@@ -45,25 +45,25 @@ Note: UI import copies a snapshot. Re-import to update.
 
 ```bash
 # Global (all projects, auto-updates with git pull)
-ln -s /path/to/wilder/skills/ack-dev ~/.kiro/skills/ack-dev
+ln -s /path/to/ack-dev-context/skills/ack-dev ~/.kiro/skills/ack-dev
 
 # Or alternatively just copy once
-cp -r /path/to/wilder/skills/ack-dev ~/.kiro/skills/
+cp -r /path/to/ack-dev-context/skills/ack-dev ~/.kiro/skills/
 ```
 
 ### Claude Code
 
 ```bash
 # Global (all projects, auto-updates with git pull)
-ln -s /path/to/wilder/skills/ack-dev ~/.claude/skills/ack-dev
+ln -s /path/to/ack-dev-context/skills/ack-dev ~/.claude/skills/ack-dev
 
 # Or alternatively just copy once
-cp -r /path/to/wilder/skills/ack-dev ~/.claude/skills/
+cp -r /path/to/ack-dev-context/skills/ack-dev ~/.claude/skills/
 ```
 
 Or run with the plugin flag (always uses latest from your clone):
 ```bash
-claude --plugin-dir /path/to/wilder
+claude --plugin-dir /path/to/ack-dev-context
 ```
 
 ### Other Tools (Cursor, Gemini CLI, etc.)
