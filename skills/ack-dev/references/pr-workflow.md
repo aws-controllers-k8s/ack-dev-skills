@@ -6,7 +6,7 @@ When building a new ACK controller or adding multiple resources, PRs should be s
 
 ### 1. Bootstrap PR
 
-Initial controller scaffolding (code generation with all resources in `ignore.resource_names`):
+Initial controller scaffolding. Add all resources to `ignore.resource_names` in `generator.yaml` before running `make build-controller` so no resource-specific files (types, CRDs, Helm CRDs) are generated:
 
 - `generator.yaml` with all resource names ignored
 - `metadata.yaml` with service info
@@ -14,7 +14,7 @@ Initial controller scaffolding (code generation with all resources in `ignore.re
 - Helm chart skeleton, E2E test infrastructure
 - `.gitignore` (not generated -- copy from another controller)
 - `README.md` updated with service name (follow existing controller format)
-- No resources yet
+- No resource-specific generated files (`apis/v1alpha1/<resource>.go`, `config/crd/bases/`, `helm/crds/`)
 
 **Also required for new controllers:** Add the controller to [test-infra/prow/jobs/jobs_config.yaml](https://github.com/aws-controllers-k8s/test-infra/blob/main/prow/jobs/jobs_config.yaml) so Prow can run E2E tests. Cut a separate PR to the test-infra repo.
 
