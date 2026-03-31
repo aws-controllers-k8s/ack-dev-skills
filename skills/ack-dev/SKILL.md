@@ -111,6 +111,8 @@ resources:
 
 **Important:** Add renames for ALL operations that use the field (Create, Read, Update, Delete, List).
 
+**Renaming primary key fields:** Requires both the renamed field key in `fields:` AND renames on every operation. For AWS-assigned identifiers (output-only fields like `BackupPlanId`), include `output_fields` renames on Create and Get, plus `input_fields` renames on Get, Update, and Delete. Missing any operation causes cryptic code-gen errors like `could not find field with path`.
+
 **Common field patterns:**
 - **Immutable fields**: Check AWS API docs carefully - a field being "required" in Update doesn't mean it's mutable. Primary keys and lookup identifiers are almost always immutable.
 - **References to other resources**: Use `AWSResourceReferenceWrapper` type via `references` config in generator.yaml.
