@@ -95,3 +95,30 @@ def test_create_delete(self, <service>_client):
 - **Test pollution**: Ensure proper cleanup
 - **AWS rate limits**: Add delays between operations
 - **Python venv issues**: Install setuptools for Python 3.13+
+- **boto3 too old for new fields**: Update test-infra pin in `test/e2e/requirements.txt` to a commit with newer boto3
+- **Slow-provisioning resources**: Pass explicit `timeout_seconds` to `wait_until()` for resources that take >35 min (e.g. MSK Express clusters need 60 min)
+
+## E2E Tests Must Include AWS API Assertions
+
+Reviewers expect tests to verify state via both the Kubernetes CR and direct AWS API calls. Example:
+
+```python
+# Verify via CR
+cr = k8s.get_resource(ref)
+assert cr["spec"]["rebalancing"]["status"] == "ACTIVE"
+
+# Verify via AWS API
+aws_resource = helper.get_by_arn(resource_arn)
+assert aws_resource is not None
+assert aws_resource["Rebalancing"]["Status"] == "ACTIVE"
+```
+
+Use existing helper modules (e.g. `cluster.get_by_arn()`) that wrap boto3 `describe_*` calls.
+
+## test-infra Pin and boto3 Version
+
+The `test/e2e/requirements.txt` pins a specific test-infra commit. That commit's `requirements.txt` determines the boto3 version in the test container. If new AWS API fields aren't visible in test assertions (KeyError), update the pin:
+
+```
+acktest @ git+https://github.com/aws-controllers-k8s/test-infra.git@<latest-commit-hash>
+```

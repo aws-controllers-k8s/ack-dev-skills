@@ -104,6 +104,29 @@ Current limitations:
 - Nested paths (e.g., `a.b.c` where `b` is a list) could be extended in a future PR
 - The code-generation side (`crd.go`) already handles list types via `getWrapperShape`
 
+**Handling fields outside the wrapper:**
+
+When using `input_wrapper_field_path`, fields on the API input that are outside the wrapper struct are excluded from the CRD spec. If those fields are required for CRUD operations, you need to handle them manually:
+
+1. **AWS-assigned identifiers** (e.g., `BackupPlanId` on `UpdateBackupPlan`): The value is in `Status` after creation. Add a `sdk_update_post_build_request` hook to copy it from status to the SDK input.
+
+2. **User-provided fields** (e.g., `BackupPlanId` on `CreateBackupSelection`): Define the field in `generator.yaml` with an explicit `type: string` to force it into the spec as a custom field. Then add hooks (`sdk_create_post_build_request`, `sdk_delete_post_build_request`) to wire it into the SDK request. Cross-resource references work on these custom fields.
+
+```yaml
+# Example: BackupPlanID is outside the BackupSelection wrapper
+# but required on Create and Delete
+fields:
+  BackupPlanID:
+    is_immutable: true
+    is_required: true
+    type: string
+    references:
+      resource: BackupPlan
+      path: Status.BackupPlanID
+```
+
+Both patterns have been confirmed in the backup-controller: BackupPlan (pattern 1) and BackupSelection (pattern 2).
+
 **Example PRs:**
 - ECR RepositoryCreationTemplate with output_wrapper_field_path: PR #142 (ecr-controller)
 - Backup BackupPlan with input_wrapper_field_path: PR #657 (code-generator)

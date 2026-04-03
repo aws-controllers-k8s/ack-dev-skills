@@ -59,6 +59,31 @@ SERVICE=ecr AWS_SDK_GO_VERSION=v1.41.0 make -C code-generator build-controller
 
 Building from `main` (even 1 commit ahead of the tag) produces a different build hash and version string in `ack-generate-metadata.yaml`.
 
+### 3. Release PRs
+
+After resource PRs are merged, cut a release to publish the controller version.
+
+**Command:**
+```bash
+cd <service>-controller
+git checkout main && git pull upstream main
+RELEASE_VERSION=v<major>.<minor>.<micro> ../code-generator/scripts/build-controller-release.sh <service>
+```
+
+**Versioning (semver):**
+- Micro bump (`v1.4.1` → `v1.4.2`): bug fixes, test-only changes
+- Minor bump (`v1.4.2` → `v1.5.0`): new fields, new resources, functional changes
+- First release for a new controller: `v0.1.0`
+
+**Branch and commit format:**
+- Branch: `release-v<version>` (e.g. `release-v0.1.0`, `release-v1.5.0`)
+- Commit message: `Release artifacts for release v<version>`
+- Single commit per release PR
+
+**Examples:**
+- New controller first release: [backup-controller PR #9](https://github.com/aws-controllers-k8s/backup-controller/pull/9) (`v0.1.0`)
+- Existing controller version bump: [kafka-controller PR #98](https://github.com/aws-controllers-k8s/kafka-controller/pull/98) (`v1.5.0`)
+
 ## Code Review Tips
 
 - Reference related PRs for context
