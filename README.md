@@ -80,7 +80,7 @@ Debug why my S3 bucket is stuck in Creating
 Add the RepositoryCreationTemplate resource to the ECR controller
 ```
 
-Note: This skill uses progressive disclosure. This is wonky in some agent implementations, don't be shy just having your agent read all references.
+Note: Progressive disclosure may not work perfectly in all agent implementations — feel free to have your agent read all references directly.
 
 ## Contributing
 

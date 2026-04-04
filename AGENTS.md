@@ -1,3 +1,4 @@
+<!-- Copy this file to your ACK workspace root (parent of code-generator/, runtime/, etc.) -->
 # ACK Development Workspace
 
 This is a multi-repo workspace for [AWS Controllers for Kubernetes (ACK)](https://aws-controllers-k8s.github.io/community/).

@@ -1,5 +1,15 @@
 # Troubleshooting
 
+## Contents
+- Code Generation Issues
+- Controller Issues
+- Build Errors After Field Rename
+- Hook Variable Names by SDK Method
+- input_wrapper_field_path Gotchas
+- E2E Test Environment Issues
+- Debugging Tips
+- Resources
+
 ## Code Generation Issues
 
 **`make build-controller` fails:**
