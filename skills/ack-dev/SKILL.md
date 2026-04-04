@@ -1,10 +1,11 @@
 ---
 name: ack-dev
 description: >-
-  Guide for AWS Controllers for Kubernetes (ACK) development. Use when setting up
-  ACK dev environments, creating new controllers, adding resources or fields to CRDs,
+  Guide for AWS Controllers for Kubernetes (ACK) development. Use when working
+  in an ACK service controller repository or the code-generator. Covers setting up
+  dev environments, creating new controllers, adding resources or fields to CRDs,
   configuring code generation, writing custom hooks, implementing cross-resource
-  references, writing E2E tests, or submitting PRs for ACK service controllers.
+  references, writing E2E tests, and submitting PRs.
 license: Apache-2.0
 metadata:
   author: ACK Team
@@ -27,19 +28,10 @@ AWS API Model → Code Generator → Generated Code → Controller
   service.json  generator.yaml  CRDs + Go types
 ```
 
-## Communication Style
+## Working Conventions
 
-**Be direct and action-oriented:**
-- "Added `DatabaseName` field to spec. Run `make build-controller`"
-- "The field needs `is_immutable: true` in generator.yaml"
-- Don't ask "Would you like me to..." - just do it or explain what to do
-- Don't explain basic concepts unless asked
-
-**Working principles:**
-1. **Do it right, not fast** - Prefer correct solutions over quick-and-dirty shortcuts.
-2. **Ask before committing** - Never commit/push without confirmation.
-3. **Use available resources** - Ask if local clones of upstream repos are available before trying to fetch remote content.
-4. **Feed the skill** - When you discover gaps, new patterns, or fixes not covered here, propose updating the relevant file in this skill (SKILL.md or references/). Capture what you learned so the next session benefits.
+1. **Use available resources** - Ask if local clones of upstream repos are available before trying to fetch remote content.
+2. **Feed the skill** - When you discover gaps, new patterns, or fixes not covered here, propose updating the relevant file in this skill (SKILL.md or references/). Capture what you learned so the next session benefits.
 
 ---
 
@@ -127,38 +119,11 @@ A field should be marked `is_immutable: true` if:
 
 **Nested Response Handling (`output_wrapper_field_path`):**
 
-Some AWS APIs wrap responses in a nested object. Without configuration, the entire wrapper ends up in Status.
-
-```yaml
-operations:
-  CreateResource:
-    output_wrapper_field_path: ResourceName
-  UpdateResource:
-    output_wrapper_field_path: ResourceName
-  DescribeResources:
-    output_wrapper_field_path: ResourceNames  # Note: plural for list operations
-```
+Some AWS APIs wrap responses in a nested object. Use `output_wrapper_field_path` to flatten them. See [code-generation.md](references/code-generation.md) for full details and examples.
 
 **Nested Input Handling (`input_wrapper_field_path`):**
 
-Some AWS APIs wrap *input* fields in a nested structure. With `input_wrapper_field_path`, the wrapper's fields are flattened directly into the CRD Spec.
-
-```yaml
-operations:
-  CreateBackupPlan:
-    input_wrapper_field_path: BackupPlan
-    output_wrapper_field_path: BackupPlan
-  UpdateBackupPlan:
-    input_wrapper_field_path: BackupPlan
-    output_wrapper_field_path: BackupPlan
-  GetBackupPlan:
-    output_wrapper_field_path: BackupPlan
-```
-
-How it works internally:
-- During CRD construction (`model.go`), the wrapper's member fields are added to Spec instead of the wrapper itself
-- During code generation (`set_sdk.go`), a wrapper struct variable (`fw`) is created, populated from Spec fields, then assigned to the input shape's wrapper field
-- The `getWrapperShape` function in `crd.go` handles both input and output unwrapping, including list-of-structure wrappers
+Some AWS APIs wrap input fields in a nested structure. Use `input_wrapper_field_path` to flatten the wrapper's fields into the CRD Spec. See [code-generation.md](references/code-generation.md) for internals, limitations, and handling fields outside the wrapper.
 
 ---
 
@@ -208,7 +173,7 @@ resources:
 
 The code-generator handles reference resolution automatically. The generated code creates a `CustomRoleRef` field alongside `CustomRoleARN` and resolves the reference at reconciliation time.
 
-**Team decision** (from tech lead a-hilaly): Return error on invalid reference, don't create resource.
+**ACK convention:** Return error on invalid reference, don't create resource.
 
 **Same-service references: do NOT set `service_name`.** When referencing a resource in the same controller (e.g., BackupPlan referencing BackupVault), omit `service_name`. Setting it (even correctly, e.g., `service_name: backup`) causes the generated code to produce an unresolved import alias (`backupapitypes`) and a compile error. Without `service_name`, code-gen correctly uses the local API types. Only set `service_name` for cross-service references (e.g., IAM Role, KMS Key).
 
@@ -259,14 +224,7 @@ resources:
 
 ## Code Generation Quick Reference
 
-**How customization works:**
-- **Skip fields**: Add to `ignore.field_paths` in generator.yaml
-- **Rename fields**: Use `renames.operations` in generator.yaml
-- **Mark immutable**: Set `is_immutable: true`
-- **Add validation**: Use kubebuilder markers in custom types
-- **Custom conversion**: Implement in hooks
-
-For deep code-generation internals, see [code-generation.md](references/code-generation.md).
+For customization patterns (skip fields, rename fields, mark immutable, custom hooks), see [code-generation.md](references/code-generation.md).
 
 ---
 
@@ -313,12 +271,19 @@ For PR ordering when building new controllers, see [pr-workflow.md](references/p
 
 ## Reference Files
 
-- [Environment Setup](references/environment-setup.md) - Dev environment prerequisites, cloning repos, building code-generator
-- [Code Generation Deep Dive](references/code-generation.md) - Internals, OriginalShapeName, wrapper handling details
-- [Testing](references/testing.md) - E2E test setup, file structure, full test patterns, common issues
-- [Contributing to Code-Generator](references/contributing-codegen.md) - Test patterns, fixtures, PR workflow for code-gen changes
-- [PR Workflow](references/pr-workflow.md) - PR ordering for new controllers, bootstrap PRs, resource PRs
-- [Troubleshooting](references/troubleshooting.md) - Common issues, debugging tips, resources and links
+- [Environment Setup](references/environment-setup.md) — Read when setting up a dev environment or cloning repos
+- [Code Generation Deep Dive](references/code-generation.md) — Read when debugging code-gen output, wrapper fields, or OriginalShapeName issues
+- [Testing](references/testing.md) — Read when writing or debugging E2E tests
+- [Contributing to Code-Generator](references/contributing-codegen.md) — Read when making changes to the code-generator itself
+- [PR Workflow](references/pr-workflow.md) — Read when planning PR order for new controllers or cutting releases
+- [Troubleshooting](references/troubleshooting.md) — Read when debugging build failures, controller issues, or test problems
+
+Quick search across references:
+```bash
+grep -ri "wrapper" references/
+grep -ri "immutable" references/
+grep -ri "hook" references/
+```
 
 ## Scripts
 

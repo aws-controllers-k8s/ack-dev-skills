@@ -1,5 +1,14 @@
 # Testing
 
+## Contents
+- Test Types (Unit, E2E)
+- E2E Tests Must Check the Synced Condition
+- E2E Test File Structure
+- Full Test Pattern with AWS Verification
+- E2E Tests Must Include AWS API Assertions
+- test-infra Pin and boto3 Version
+- Common Test Issues
+
 ## Test Types
 
 ### Unit Tests (fast, no AWS)

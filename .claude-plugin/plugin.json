@@ -1,7 +1,7 @@
 {
-  "name": "wilder",
+  "name": "ack-dev",
   "version": "1.0.0",
   "description": "ACK development guidance for building AWS Controllers for Kubernetes",
-  "repository": "https://github.com/aws-controllers-k8s/ack-dev-context",
+  "repository": "https://github.com/aws-controllers-k8s/ack-dev-skills",
   "license": "Apache-2.0"
 }

@@ -1,5 +1,13 @@
 # Code Generation Deep Dive
 
+## Contents
+- How It Works
+- Customization Patterns
+- OriginalShapeName Awareness
+- BadDefaultsAssignment
+- Nested Response Handling (output_wrapper_field_path)
+- Nested Input Handling (input_wrapper_field_path)
+
 ## How It Works
 
 ```

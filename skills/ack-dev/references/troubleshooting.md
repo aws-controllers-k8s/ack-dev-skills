@@ -1,5 +1,15 @@
 # Troubleshooting
 
+## Contents
+- Code Generation Issues
+- Controller Issues
+- Build Errors After Field Rename
+- Hook Variable Names by SDK Method
+- input_wrapper_field_path Gotchas
+- E2E Test Environment Issues
+- Debugging Tips
+- Resources
+
 ## Code Generation Issues
 
 **`make build-controller` fails:**
@@ -94,7 +104,3 @@ Also: if you rename a field (e.g. `SelectionId` → `ID`), code-gen loses the ma
 ### Community
 - [GitHub Discussions](https://github.com/orgs/aws-controllers-k8s/discussions)
 - [Slack Channel](https://kubernetes.slack.com/archives/C01EWFWCM9X)
-
-### Key Team Members
-- **Tech Leads**: jaypipes, a-hilaly
-- **Principal Engineers**: RedbackThomson, michaelhtm

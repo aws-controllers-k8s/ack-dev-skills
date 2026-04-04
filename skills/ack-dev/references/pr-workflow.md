@@ -1,5 +1,13 @@
 # PR Workflow
 
+## Contents
+- PR Ordering for New Controllers (Bootstrap, Resource, Release PRs)
+- Required Non-Generated Files
+- Prow Test Infrastructure Onboarding
+- Building Against a Specific Code-Generator Version
+- Code Review Tips
+- Common Misses
+
 ## PR Ordering for New Controllers
 
 When building a new ACK controller or adding multiple resources, PRs should be submitted in order. Each should be merged before the next is submitted.
