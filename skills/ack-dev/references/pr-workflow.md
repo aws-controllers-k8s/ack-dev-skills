@@ -56,16 +56,17 @@ Each resource gets its own PR:
 
 **Why this order:** Reviewers focus on one resource at a time, PRs are smaller, resources merge independently.
 
-## Building Against a Specific Code-Generator Version
+## Code-Generator and Runtime Versions
 
-For controller PRs, always build against the exact code-generator release tag, not `main`:
+CI builds controllers with both `code-generator` and `runtime` at HEAD of `main`. For dev work, keep both at HEAD to match CI:
 
 ```bash
-git -C code-generator checkout v0.57.0
+git -C code-generator checkout main && git -C code-generator pull upstream main
+git -C runtime checkout main && git -C runtime pull upstream main
 SERVICE=ecr AWS_SDK_GO_VERSION=v1.41.0 make -C code-generator build-controller
 ```
 
-Building from `main` (even 1 commit ahead of the tag) produces a different build hash and version string in `ack-generate-metadata.yaml`.
+If you need to pin to a specific version (e.g., to match an existing controller's `ack-generate-metadata.yaml` for a release PR), check out the exact tag instead.
 
 ### 3. Release PRs
 
