@@ -58,16 +58,39 @@ LOOP:
     Store reviewer feedback → continue LOOP
 ```
 
-### Phase 3: Completion
+### Phase 3: E2E Testing
+
+After the reviewer approves (or max iterations reached with a compilable result), run the e2e tests.
+
+1. Ensure `test_config.yaml` exists in the test-infra directory (`CONTROLLER_DIR/../test-infra/`). If not, copy from `test_config.example.yaml` and configure:
+   - `aws.assumed_role_arn` — the developer's test role
+   - `tests.methods` — filter to the new resource's tests (e.g., `- test_<resource>`)
+   - `debug.enabled: true`
+   - `debug.dump_controller_logs: true`
+
+2. Set `ARTIFACTS` environment variable and run tests **in the background** (they take 10–30+ minutes):
+   ```bash
+   export ARTIFACTS=/tmp/ack-test-logs
+   cd CONTROLLER_DIR/../test-infra && make kind-test SERVICE=<service>
+   ```
+   Do not poll or sleep — wait for the completion notification.
+
+3. When tests complete:
+   - If **PASS**: proceed to Phase 4
+   - If **FAIL**: read the test output and controller logs (`$ARTIFACTS/`). Spawn `ack-implementer` with the failure details to fix the issue, then re-run tests. Maximum 2 fix attempts before escalating to the user.
+
+See `skills/ack-dev/references/running-e2e-tests.md` for full test-infra configuration details.
+
+### Phase 4: Completion
 
 Report to the user:
 
-1. **Result**: Approved by Reviewer, or unresolved issues remaining
+1. **Result**: Approved by Reviewer, e2e test status
 2. **Plan summary**: Key decisions (primary key, tagging approach, hooks needed)
 3. **Files created/modified**: Grouped by category (config, hooks, tests, generated)
 4. **Build status**: Controller compiles, unit tests pass
-5. **Next steps**:
-   - Run e2e tests against AWS (not done by the agent)
+5. **E2E test status**: Pass/fail, which tests ran, any remaining failures
+6. **Next steps**:
    - Squash commits
    - Open PR (or push to existing branch)
 

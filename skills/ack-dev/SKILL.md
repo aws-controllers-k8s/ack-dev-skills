@@ -365,6 +365,7 @@ For PR ordering when building new controllers, see [pr-workflow.md](references/p
 - [Environment Setup](references/environment-setup.md) — Read when setting up a dev environment or cloning repos
 - [Code Generation Deep Dive](references/code-generation.md) — Read when debugging code-gen output, wrapper fields, or OriginalShapeName issues
 - [Testing](references/testing.md) — Read when writing or debugging E2E tests
+- [Running E2E Tests](references/running-e2e-tests.md) — Read when running e2e tests locally with KIND via test-infra
 - [Contributing to Code-Generator](references/contributing-codegen.md) — Read when making changes to the code-generator itself
 - [PR Workflow](references/pr-workflow.md) — Read when planning PR order for new controllers or cutting releases
 - [Troubleshooting](references/troubleshooting.md) — Read when debugging build failures, controller issues, or test problems
