@@ -77,6 +77,7 @@ After the reviewer approves (or max iterations reached with a compilable result)
 
 3. When tests complete:
    - If **PASS**: proceed to Phase 4
+   - If **SKIPPED**: Treat skipped tests as failures if they were added by the Implementer in this workflow. Tests that skip due to missing environment variables or unmet preconditions indicate the test was written in a way that cannot actually execute in the test harness. Spawn `ack-implementer` with feedback explaining that skipped tests are not acceptable — tests must use the bootstrap system (`service_bootstrap.py` / `bootstrap_resources.py`) or create resources in fixtures, following the patterns of existing tests in the controller. Do not use environment variables to gate test execution.
    - If **FAIL**: read the test output and controller logs (`$ARTIFACTS/`). Spawn `ack-implementer` with the failure details to fix the issue, then re-run tests. Maximum 2 fix attempts before escalating to the user.
 
 See `skills/ack-dev/references/running-e2e-tests.md` for full test-infra configuration details.
