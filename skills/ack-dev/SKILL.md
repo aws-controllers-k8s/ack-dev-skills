@@ -39,6 +39,8 @@ AWS API Model → Code Generator → Generated Code → Controller
 
 These apply everywhere. They are not repeated in individual sections.
 
+**Never use aws-sdk-go v1.** The Go module `github.com/aws/aws-sdk-go` (no `-v2` suffix) is deprecated. ACK uses `github.com/aws/aws-sdk-go-v2`. When looking for API models, SDK types, or operation definitions, always use the v2 module paths. The `AWS_SDK_GO_VERSION` env var below refers to the Go module version of the v2 SDK (e.g., `v1.41.0` is the module version, not the SDK generation).
+
 **Never manually edit generated files.** All files in `apis/v1alpha1/`, `pkg/resource/`, `config/crd/`, `config/rbac/`, `helm/`, and `cmd/controller/main.go` are generated and will be overwritten. If something's wrong, fix `generator.yaml` and rebuild.
 
 **Edit only these:**
