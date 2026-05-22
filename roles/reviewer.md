@@ -48,6 +48,7 @@ Verify:
 
 For each hook in `templates/hooks/`:
 
+- [ ] **Hook is actually necessary** — consult the [generator.yaml reference](../references/generator-yaml-reference.md) to verify that no declarative config option achieves the same behavior. Hooks that duplicate what generator.yaml can do declaratively are a MUST FIX.
 - [ ] Correct variable name used per hook point:
   - `sdk_create_*` → `desired`
   - `sdk_read_one_*` → `ko`

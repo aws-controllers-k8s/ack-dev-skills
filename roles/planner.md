@@ -75,13 +75,14 @@ For each field that references another AWS resource (e.g., IAM Role ARN, KMS Key
 
 ### Step 7: Determine Custom Hook Needs
 
-Only propose hooks for behavior that generator.yaml cannot handle:
-- Fields outside a wrapper that need manual mapping
-- Complex conditional logic (e.g., different update paths depending on field values)
-- Extra API calls (e.g., waiting for resource to be active before returning)
-- Non-standard status condition handling
+**Custom hooks are a LAST RESORT.** Before proposing any hook, you MUST verify that no declarative generator.yaml configuration achieves the same result. Consult the [generator.yaml reference](../references/generator-yaml-reference.md) for the full list of declarative options available.
 
-For each hook, identify the hook point and the logic needed.
+**Do NOT copy hooks from other resources in the controller without verifying the hook is still necessary.** Older resources may use hooks for behaviors that generator.yaml now handles declaratively (e.g., error codes, synced conditions, immutability, field renames, wrapper fields).
+
+For each hook you DO propose, document:
+1. The hook point
+2. The logic needed
+3. **Why generator.yaml config is insufficient** (cite the specific limitation)
 
 ### Step 8: Produce the Plan
 
@@ -106,5 +107,5 @@ Your plan is complete when:
 - Do NOT write code or modify any files
 - Do NOT use aws-sdk-go v1 (`github.com/aws/aws-sdk-go`) — it is deprecated. Only use aws-sdk-go-v2 (`github.com/aws/aws-sdk-go-v2`)
 - Do NOT guess error codes — research them from the API model or AWS documentation
-- Do NOT propose unnecessary hooks — prefer generator.yaml configuration
+- Do NOT propose unnecessary hooks — for EVERY hook you propose, you must demonstrate that no generator.yaml option achieves the same result. Copying hooks from other resources without this validation is a common source of bugs.
 - Do NOT include fields in the plan that should be ignored (internal AWS fields, request tokens, etc.)
