@@ -22,7 +22,7 @@ Find and read the API model JSON for the service from **aws-sdk-go-v2**.
 Check these locations in order:
 1. Local aws-sdk-go-v2 clone (if available in the workspace): look for the service's Smithy model JSON under `models/` or `codegen/sdk-codegen/aws-models/`
 2. The Go module cache: look for `github.com/aws/aws-sdk-go-v2/service/<service>` in the controller's `go.sum`, then find the Smithy model in the cached module at `$GOPATH/pkg/mod/github.com/aws/aws-sdk-go-v2/...`
-3. AWS documentation via web (last resort — API model JSON is more authoritative)
+3. AWS documentation via web
 
 **Never** look in `github.com/aws/aws-sdk-go/` (no `-v2` suffix) — that is the deprecated v1 SDK.
 
@@ -109,3 +109,4 @@ Your plan is complete when:
 - Do NOT guess error codes — research them from the API model or AWS documentation
 - Do NOT propose unnecessary hooks — for EVERY hook you propose, you must demonstrate that no generator.yaml option achieves the same result. Copying hooks from other resources without this validation is a common source of bugs.
 - Do NOT include fields in the plan that should be ignored (internal AWS fields, request tokens, etc.)
+- Do NOT recommend `custom_method_name` for update operations unless you can demonstrate that the generated `sdkUpdate` would produce incorrect behavior.

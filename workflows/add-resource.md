@@ -22,6 +22,21 @@ Delegate to the **Planner** role (`roles/planner.md`):
 
 Store the returned plan document.
 
+### Phase 1.5: Plan Review
+
+Delegate to the **Reviewer** role (`roles/reviewer.md`) in plan-review mode:
+
+> Review the plan document for SERVICE={SERVICE} RESOURCE={RESOURCE}.
+> CONTROLLER_DIR={CONTROLLER_DIR} CODEGEN_DIR={CODEGEN_DIR}.
+> Mode: plan-review. Verify API constraints and custom code necessity against the SDK model.
+
+IF reviewer decision == APPROVE:
+  Proceed to Phase 2.
+
+ELSE (REVISE):
+  Pass reviewer feedback back to the Planner for a revised plan (maximum 1 re-plan attempt).
+  Use the revised plan for Phase 2.
+
 ### Phase 2: Implementation Loop
 
 Maximum **4 total iterations** (1 initial implementation + up to 3 review cycles).
@@ -100,6 +115,7 @@ Report to the user:
 When running in Claude Code, each "delegate" maps to spawning the corresponding subagent:
 
 - **Planner** → spawn `ack-planner` subagent with plan task
+- **Reviewer (plan-review)** → spawn `ack-reviewer` subagent with plan + `Mode: plan-review`
 - **Implementer** → spawn `ack-implementer` subagent with plan or feedback
 - **Reviewer** → spawn `ack-reviewer` subagent with plan + summary
 
@@ -110,9 +126,11 @@ The main session holds the loop state and passes structured documents between su
 When running in a tool without subagent support:
 
 1. Read `roles/planner.md`, execute the Planner methodology, produce the plan
-2. Read `roles/implementer.md`, execute with the plan as input
-3. Read `roles/reviewer.md`, review your own implementation output
-4. If REVISE: re-read `roles/implementer.md` and address the feedback
-5. Repeat until APPROVE or max iterations
+2. Read `roles/reviewer.md`, execute in plan-review mode against the plan
+3. If REVISE: re-read `roles/planner.md` and revise the plan (max 1 re-plan)
+4. Read `roles/implementer.md`, execute with the plan as input
+5. Read `roles/reviewer.md`, review your own implementation output
+6. If REVISE: re-read `roles/implementer.md` and address the feedback
+7. Repeat until APPROVE or max iterations
 
 The role SOPs enforce boundaries through instruction ("do not write code", "do not modify files") even without process isolation.
