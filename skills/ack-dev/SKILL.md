@@ -39,6 +39,8 @@ AWS API Model → Code Generator → Generated Code → Controller
 
 These apply everywhere. They are not repeated in individual sections.
 
+**Never use aws-sdk-go v1.** The Go module `github.com/aws/aws-sdk-go` (no `-v2` suffix) is deprecated. ACK uses `github.com/aws/aws-sdk-go-v2`. When looking for API models, SDK types, or operation definitions, always use the v2 module paths. The `AWS_SDK_GO_VERSION` env var below refers to the Go module version of the v2 SDK (e.g., `v1.41.0` is the module version, not the SDK generation).
+
 **Never manually edit generated files.** All files in `apis/v1alpha1/`, `pkg/resource/`, `config/crd/`, `config/rbac/`, `helm/`, and `cmd/controller/main.go` are generated and will be overwritten. If something's wrong, fix `generator.yaml` and rebuild.
 
 **Edit only these:**
@@ -129,22 +131,15 @@ Some AWS APIs wrap input fields in a nested structure. Use `input_wrapper_field_
 
 ## Configuring Tags Support
 
-**Important:** Not all resources support tagging via the TagResource API. Check AWS documentation first.
+**Important:** Not all resources support tagging. Check AWS documentation first.
 
 ```bash
 aws <service> tag-resource help
 # Look for: "Currently, the only supported resource is..."
 ```
 
-**For resources that support TagResource:**
-```yaml
-resources:
-  Repository:
-    tags:
-      ignore: false  # Default
-```
+### Resources that do NOT support tagging
 
-**For resources that do NOT support TagResource:**
 ```yaml
 resources:
   RepositoryCreationTemplate:
@@ -152,7 +147,105 @@ resources:
       ignore: true
 ```
 
-**Special case:** Some resources have a field for tags applied to OTHER resources they create (e.g., ECR RepositoryCreationTemplate's `resourceTags`). The template still needs `tags.ignore: true`.
+### Resources that DO support tagging
+
+When a resource supports tagging via TagResource/UntagResource (or service-specific equivalents like CreateTags/DeleteTags, TagRole/UntagRole), ACK requires both generated and manual code to fully wire up tag management.
+
+**generator.yaml** — do NOT set `tags.ignore: true`. Either omit the `tags:` section (defaults to `ignore: false`) or set it explicitly:
+
+```yaml
+resources:
+  MyResource:
+    # tags.ignore defaults to false — tags ARE supported
+```
+
+**What the code-generator produces automatically** when `tags.ignore` is `false`:
+- `pkg/resource/<resource>/tags.go` — `convertToOrderedACKTags`, `fromACKTags`, `ignoreSystemTags`, `syncAWSTags` helper functions
+- `pkg/resource/<resource>/manager.go` — `GetDefaultTags`, `MergeResourceTags` integration
+- `pkg/resource/<resource>/delta.go` — tag comparison logic that calls `convertToOrderedACKTags`
+- A `Tags` field in the resource's `Spec`
+
+**What you must implement manually:**
+
+1. **A shared tag sync utility** (one per controller, reused by all tagged resources). Location varies by controller convention — check what already exists:
+   - `pkg/sync/tags.go` (e.g., kafka-controller)
+   - `pkg/util/tags.go` (e.g., elasticache-controller, rds-controller, iam-controller)
+   - `pkg/tags/sync.go` (e.g., ec2-controller)
+
+   If the controller already has one, reuse it. If not, create one. The function computes the diff between desired and latest tags, then calls the appropriate AWS APIs to add/remove tags.
+
+2. **A per-resource `syncTags` function** that bridges the resource to the shared utility. This goes in `hooks.go` or is declared as a variable pointing to the shared function:
+
+   **Pattern A — method delegating to shared util** (elasticache, kafka):
+   ```go
+   func (rm *resourceManager) syncTags(ctx context.Context, desired *resource, latest *resource) error {
+       return util.SyncTags(ctx, desired.ko.Spec.Tags, latest.ko.Spec.Tags,
+           latest.ko.Status.ACKResourceMetadata, convertToOrderedACKTags,
+           rm.sdkapi, rm.metrics)
+   }
+   ```
+
+   **Pattern B — variable alias to shared package** (ec2):
+   ```go
+   var syncTags = tags.Sync
+   ```
+
+   **Pattern C — inline implementation** (iam, for service-specific APIs like TagRole/UntagRole):
+   ```go
+   func (rm *resourceManager) syncTags(ctx context.Context, desired *resource, latest *resource) error {
+       // Compute diff, call service-specific tag/untag APIs directly
+   }
+   ```
+
+3. **A hook template** that checks for tag changes during update. This is typically in `templates/hooks/<resource>/sdk_update_pre_build_request.go.tpl`:
+
+   ```go
+   if delta.DifferentAt("Spec.Tags") {
+       if err = rm.syncTags(ctx, desired, latest); err != nil {
+           return nil, err
+       }
+   }
+   if !delta.DifferentExcept("Spec.Tags") {
+       return desired, nil
+   }
+   ```
+
+   The second check (`DifferentExcept`) short-circuits the rest of the update logic if ONLY tags changed — tag updates use their own API and don't go through the standard Update operation.
+
+4. **Wire the hook template in generator.yaml:**
+
+   ```yaml
+   resources:
+     MyResource:
+       hooks:
+         sdk_update_pre_build_request:
+           template_path: hooks/<resource>/sdk_update_pre_build_request.go.tpl
+   ```
+
+   The `sdk_update_pre_build_request` hook is sufficient for tag syncing — a `custom_method_name: customUpdate` is NOT required just for tags. Only use `customUpdate` if the resource needs it for other reasons. In that case, add the tag delta check directly into the `customUpdate` function in `hooks.go` instead of using a hook template.
+
+### How to determine the implementation approach
+
+1. **Check if the controller already has a shared tag utility** — look for `pkg/sync/`, `pkg/util/tags.go`, or `pkg/tags/`. If it exists, follow the same pattern for your new resource.
+2. **Check existing resources in the controller** — look at how other resources in the same controller handle tags (their hooks.go and hook templates). Follow the established convention.
+3. **Identify the service's tag API names** — services use different APIs:
+   - Most: `TagResource` / `UntagResource` / `ListTagsForResource`
+   - EC2: `CreateTags` / `DeleteTags` / `DescribeTags`
+   - IAM: `TagRole` / `UntagRole` / `ListRoleTags` (per-resource-type APIs)
+   - S3: `PutBucketTagging` / `DeleteBucketTagging` / `GetBucketTagging`
+
+### Tag reading (ListTagsForResource)
+
+How tags are read on reconcile depends on the service:
+- **Tags in Describe response** (EC2, RDS, Kafka): Tags come back automatically from the Describe/Get API. No additional hook needed.
+- **Separate ListTagsForResource API** (ElastiCache, IAM, Lambda): Requires a `sdk_read_one_post_set_output` hook or supplemental API call in the read path to fetch tags.
+
+Check the existing controller's read hooks — if other resources fetch tags via ListTagsForResource, your new resource likely needs the same pattern.
+
+### Special cases
+
+- Some resources have a field for tags applied to OTHER resources they create (e.g., ECR RepositoryCreationTemplate's `resourceTags`). Set `tags.ignore: true` for these.
+- Some services use a `TagSet` or `TagList` structure instead of a flat map. Use `tags.path` in generator.yaml to specify the nested path (e.g., S3: `tags: path: Tagging.TagSet`).
 
 ---
 
@@ -274,6 +367,7 @@ For PR ordering when building new controllers, see [pr-workflow.md](references/p
 - [Environment Setup](references/environment-setup.md) — Read when setting up a dev environment or cloning repos
 - [Code Generation Deep Dive](references/code-generation.md) — Read when debugging code-gen output, wrapper fields, or OriginalShapeName issues
 - [Testing](references/testing.md) — Read when writing or debugging E2E tests
+- [Running E2E Tests](references/running-e2e-tests.md) — Read when running e2e tests locally with KIND via test-infra
 - [Contributing to Code-Generator](references/contributing-codegen.md) — Read when making changes to the code-generator itself
 - [PR Workflow](references/pr-workflow.md) — Read when planning PR order for new controllers or cutting releases
 - [Troubleshooting](references/troubleshooting.md) — Read when debugging build failures, controller issues, or test problems

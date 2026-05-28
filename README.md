@@ -82,6 +82,23 @@ Add the RepositoryCreationTemplate resource to the ECR controller
 
 Note: Progressive disclosure may not work perfectly in all agent implementations — feel free to have your agent read all references directly.
 
+### Add Resource Workflow
+
+The `add-resource` workflow is an end-to-end orchestration that takes a new resource from investigation through working code with tests. It runs a **Plan → Review → Implement → Review → E2E test** loop with up to 4 iterations of refinement.
+
+See [`workflows/add-resource.md`](workflows/add-resource.md) for full details.
+
+#### Claude Code
+
+Load the plugin and start the `add-resource` agent directly from your controller repo:
+
+```bash
+cd /path/to/sns-controller
+claude --plugin-dir ../ack-dev-skills --agent ack-dev:add-resource "implement the Topic resource"
+```
+
+The `--agent` flag launches the orchestrator which spawns specialized subagents (planner, implementer, reviewer) and manages the review loop automatically. Run from the controller directory so paths are auto-detected.
+
 ## Contributing
 
 This skill is maintained by the ACK team and updated based on real development experience.
@@ -99,6 +116,21 @@ We incorporate learnings from controller development, customer feedback, and tea
 ## Structure
 
 ```
+workflows/                      # Multi-phase orchestration definitions
+└── add-resource.md             # Plan → Review → Implement → Review → E2E loop
+
+agents/                         # Claude Code subagent definitions (plugin mode)
+├── add-resource.md             # Orchestrator — spawns planner/implementer/reviewer
+├── ack-planner.md              # Plans resource configuration
+├── ack-implementer.md          # Writes code, hooks, tests
+└── ack-reviewer.md             # Reviews plans and implementations
+
+roles/                          # Role SOPs (tool-agnostic, used by both agents and Kiro)
+├── planner.md                  # Planner methodology and constraints
+├── implementer.md              # Implementer methodology and constraints
+├── reviewer.md                 # Reviewer methodology and constraints
+└── schemas/                    # Structured output schemas for role handoffs
+
 skills/ack-dev/                 # Agent Skill directory
 ├── SKILL.md                    # Core instructions and common workflows
 ├── scripts/                    # Repetitive tasks or things we want to be deterministic
@@ -112,6 +144,14 @@ skills/ack-dev/                 # Agent Skill directory
     ├── contributing-codegen.md # Contributing to the code-generator
     ├── pr-workflow.md          # PR ordering and review guidance
     └── troubleshooting.md      # Common issues, debugging, resources
+
+skills/resolve-issue/           # Issue triage and resolution skill
+└── SKILL.md                    # End-to-end issue workflow (triage → classify → fix)
+
+references/                     # Shared reference docs (available to all skills)
+├── generator-yaml-reference.md # Complete generator.yaml option docs
+├── bug-fix-patterns.md         # Common root causes and fixes
+└── new-resource-checklist.md   # Feasibility checks and config decisions
 ```
 
 ## License
