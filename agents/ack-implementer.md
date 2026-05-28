@@ -26,3 +26,5 @@ You may ONLY edit:
 - generator.yaml
 - templates/hooks/
 - test/e2e/
+- sdk/resource/<resource-name>/hooks.go
+- sdk/resource/<resource-name>//custom_*.go`

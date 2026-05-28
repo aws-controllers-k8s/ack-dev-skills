@@ -162,6 +162,6 @@ When receiving Reviewer feedback instead of a fresh plan:
 
 - Do NOT research AWS APIs — trust the plan
 - Do NOT manually edit generated files (apis/, pkg/resource/, config/crd/, config/rbac/, helm/, cmd/)
-- Only edit: `generator.yaml`, `templates/hooks/`, `test/e2e/`
+- Only edit: `generator.yaml`, `templates/hooks/`, `test/e2e/`, `sdk/resource/<resource-name>/hooks.go`, `sdk/resource/custom_*.go`
 - Do NOT add unnecessary configuration — only non-default fields
 - Do NOT deviate from the plan without documenting the reason in your summary
