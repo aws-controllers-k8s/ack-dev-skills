@@ -99,6 +99,14 @@ claude --plugin-dir ../ack-dev-skills --agent ack-dev:add-resource "implement th
 
 The `--agent` flag launches the orchestrator which spawns specialized subagents (planner, implementer, reviewer) and manages the review loop automatically. Run from the controller directory so paths are auto-detected.
 
+
+Agents for the workflow roles can also be run individually. For example, the `ack-reviewer` role can be run via claude code with the below command.
+
+```
+claude --plugin-dir ../ack-dev-skills --agent ack-dev:ack-reviewer "Please review this this ACK PR for the <target-controller> <PR-link>"                
+"
+```
+
 ## Contributing
 
 This skill is maintained by the ACK team and updated based on real development experience.
