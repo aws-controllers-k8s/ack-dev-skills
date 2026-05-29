@@ -16,7 +16,7 @@ This skill gives AI agents contextual expertise for ACK development tasks:
 - Debugging controller issues
 - Creating release PRs for a controller
 
-The guidance is distilled from ACK team practices, code reviews, and 84k+ documents including over 5k PRs and 5 years of Slack discussions. But the most valuable data source is you. If you find gaps, updates, or suggestions in the guidance, PRs are welcome! This is a team sport.
+The guidance is distilled from ACK team practices, code reviews, and 84k+ documents including over 5k PRs and 5 years of Slack discussions. It also incorporates patterns from 6,300+ inline PR review comments extracted across 55 ACK repositories, capturing the most common mistakes and best practices enforced by core reviewers. But the most valuable data source is you. If you find gaps, updates, or suggestions in the guidance, PRs are welcome! This is a team sport.
 
 ## Installation
 
@@ -140,6 +140,8 @@ skills/ack-dev/                 # Agent Skill directory
 └── references/
     ├── environment-setup.md    # Dev environment setup
     ├── code-generation.md      # Code-gen internals and wrapper handling
+    ├── field-config-patterns.md # Field placement, immutability, terminal codes, late init
+    ├── reconciliation-patterns.md # Delta handling, async lifecycle, ReadOne completeness
     ├── testing.md              # E2E test patterns and file structure
     ├── contributing-codegen.md # Contributing to the code-generator
     ├── pr-workflow.md          # PR ordering and review guidance

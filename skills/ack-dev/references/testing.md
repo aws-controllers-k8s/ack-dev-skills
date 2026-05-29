@@ -106,6 +106,17 @@ def test_create_delete(self, <service>_client):
 - **Python venv issues**: Install setuptools for Python 3.13+
 - **boto3 too old for new fields**: Update test-infra pin in `test/e2e/requirements.txt` to a commit with newer boto3
 - **Slow-provisioning resources**: Pass explicit `timeout_seconds` to `wait_until()` for resources that take >35 min (e.g. MSK Express clusters need 60 min)
+- **Static resource names**: Always use `random_suffix_name()` — static names require manual cleanup on test failure
+- **No cleanup on failure**: Use pytest fixtures with `yield` so cleanup runs even when assertions fail:
+  ```python
+  @pytest.fixture
+  def my_resource(self):
+      ref, cr = create_resource(...)
+      yield ref, cr
+      k8s.delete_custom_resource(ref)  # Always runs
+  ```
+- **Missing update test**: Every resource must have create, update (modify at least one field), AND delete tests
+- **CloudFormation in tests**: Don't use CF for test dependencies — use ACK resources or `acktest/bootstrapping` helpers
 
 ## E2E Tests Must Include AWS API Assertions
 

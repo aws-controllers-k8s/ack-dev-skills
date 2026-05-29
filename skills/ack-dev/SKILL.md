@@ -33,6 +33,21 @@ AWS API Model → Code Generator → Generated Code → Controller
 1. **Use available resources** - Ask if local clones of upstream repos are available before trying to fetch remote content.
 2. **Feed the skill** - When you discover gaps, new patterns, or fixes not covered here, propose updating the relevant file in this skill (SKILL.md or references/). Capture what you learned so the next session benefits.
 
+## Required Reading by Task
+
+Before starting work, read the reference file for your task. These contain patterns distilled from 6,300+ PR review comments that prevent common mistakes.
+
+| Task | Read first |
+|------|-----------|
+| Configure `generator.yaml` fields | [field-config-patterns.md](references/field-config-patterns.md) |
+| Write or modify hooks | [reconciliation-patterns.md](references/reconciliation-patterns.md), [troubleshooting.md](references/troubleshooting.md) |
+| Debug reconciliation loop or delta issues | [reconciliation-patterns.md](references/reconciliation-patterns.md) |
+| Write E2E tests | [testing.md](references/testing.md) |
+| New controller (bootstrap PR) | [pr-workflow.md](references/pr-workflow.md) |
+| Cut a release | [pr-workflow.md](references/pr-workflow.md) |
+| Debug build or code-gen failures | [troubleshooting.md](references/troubleshooting.md) |
+| Change the code-generator itself | [contributing-codegen.md](references/contributing-codegen.md) |
+
 ---
 
 ## Golden Rules
@@ -305,7 +320,7 @@ resources:
    ```
 3. Rebuild (custom templates are picked up automatically by `make build-controller`)
 
-**Hook template must use renamed fields:** If you renamed fields in generator.yaml, use the new names (e.g., `r.ko.Spec.Name` not `r.ko.Spec.BackupVaultName`).
+**Hook template must use renamed fields:** If you renamed fields in generator.yaml, use the new names (e.g., `r.ko.Spec.Name` not `r.ko.Spec.BackupVaultName`). See [troubleshooting.md](references/troubleshooting.md) "Hook Variable Names by SDK Method" for correct variable names per hook point.
 
 **Common hook points:**
 - `sdk_read_one_post_request` - After reading resource from AWS
@@ -319,11 +334,15 @@ resources:
 
 For customization patterns (skip fields, rename fields, mark immutable, custom hooks), see [code-generation.md](references/code-generation.md).
 
+For field placement decisions (Spec vs Status, is_read_only, is_immutable, custom fields), see [field-config-patterns.md](references/field-config-patterns.md).
+
+For delta/comparison issues and reconciliation loops, see [reconciliation-patterns.md](references/reconciliation-patterns.md).
+
 ---
 
-## PR Checklist for New Resources
+## PR Checklist
 
-### Required Files
+### Required Files (New Resources)
 
 | File/Location | Purpose |
 |---------------|---------|
@@ -338,14 +357,41 @@ For customization patterns (skip fields, rename fields, mark immutable, custom h
 
 ### Pre-Submit Checklist
 
+Applies to ALL PRs — new resources, new fields, bug fixes, hook changes.
+
+**generator.yaml:**
 ```
-[ ] Resource removed from `ignore.resource_names` in generator.yaml
-[ ] All CRUD operations configured
+[ ] Renames cover ALL operations (Create, Delete, Describe, Update, List)
+[ ] Field immutability verified against AWS API docs
+[ ] Terminal codes configured for unrecoverable errors
+[ ] Tags: verified resource supports TagResource API
+[ ] Same-service references: service_name NOT set
+[ ] Deprecated SDK fields ignored
+[ ] RequestId/HTTP status fields ignored
+[ ] Sensitive fields marked is_secret
+[ ] Reserved keyword field names fixed (no trailing underscores)
+```
+
+**Build & verify:**
+```
 [ ] Code generated: SERVICE=<svc> AWS_SDK_GO_VERSION=<ver> make build-controller
 [ ] git status shows all expected generated files including Helm
 [ ] Code compiles: go build -o bin/controller ./cmd/controller
-[ ] E2E tests added with create/update/delete coverage
+[ ] No nil pointer risks in hook code
+```
+
+**Testing:**
+```
+[ ] E2E tests cover create, update (modify at least one field), delete
 [ ] E2E tests verify Synced condition after operations
+[ ] E2E tests include AWS API assertions (not just CR checks)
+[ ] Test resources use random suffix names
+[ ] Test cleanup runs even on failure (pytest fixtures with yield)
+```
+
+**PR hygiene:**
+```
+[ ] Built against correct code-generator release tag (not main)
 [ ] Commits squashed into single commit
 ```
 
@@ -366,6 +412,8 @@ For PR ordering when building new controllers, see [pr-workflow.md](references/p
 
 - [Environment Setup](references/environment-setup.md) — Read when setting up a dev environment or cloning repos
 - [Code Generation Deep Dive](references/code-generation.md) — Read when debugging code-gen output, wrapper fields, or OriginalShapeName issues
+- [Field Configuration Patterns](references/field-config-patterns.md) — Read when configuring fields in generator.yaml (is_read_only, is_immutable, from, custom fields, terminal codes, late init)
+- [Reconciliation Patterns](references/reconciliation-patterns.md) — Read when dealing with delta/comparison issues, reconciliation loops, ReadOne completeness, or condition handling
 - [Testing](references/testing.md) — Read when writing or debugging E2E tests
 - [Running E2E Tests](references/running-e2e-tests.md) — Read when running e2e tests locally with KIND via test-infra
 - [Contributing to Code-Generator](references/contributing-codegen.md) — Read when making changes to the code-generator itself
