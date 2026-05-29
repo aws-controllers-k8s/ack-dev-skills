@@ -1,10 +1,12 @@
-# ack-dev
+# ack-dev-skills
 
-Development guidance for [AWS Controllers for Kubernetes (ACK)](https://aws-controllers-k8s.github.io/community/), packaged as an [Agent Skill](https://agentskills.io) for use with AI coding tools.
+Development *and* maintainer skills for [AWS Controllers for Kubernetes (ACK)](https://aws-controllers-k8s.github.io/community/), packaged as [Agent Skills](https://agentskills.io) for use with AI coding tools.
 
 ## What is this?
 
-This skill gives AI agents contextual expertise for ACK development tasks:
+Two families of skills, sharing one repo:
+
+**Building skills** (`ack-dev`) — contextual expertise for ACK development tasks:
 
 - Setting up ACK development environments
 - Creating new controllers from scratch
@@ -15,6 +17,11 @@ This skill gives AI agents contextual expertise for ACK development tasks:
 - Writing E2E tests
 - Debugging controller issues
 - Creating release PRs for a controller
+
+**Maintainer skills** (`ack-triage`, `ack-review`) — cross-repo workflows for keeping the ACK org's issues and PRs healthy:
+
+- `ack-triage` — scan issues across all `aws-controllers-k8s` repos, cluster similar items, then **walk the maintainer through each item** with full context (rubric verdict, missing fields, draft preview) and a per-item `apply / edit / skip / skip-cluster / stop` decision. Single-issue triage is just a one-item walk. Dry-run by default; `--apply` posts comments and labels.
+- `ack-review` — first-pass PR review against ACK conventions (don't edit generated files, `renames` covers all ops, helm chart updated, E2E tests check `Synced`, etc.). Dry-run renders a human-readable markdown preview with diff context around each inline comment; `--apply` posts a single GitHub review with all inline comments.
 
 The guidance is distilled from ACK team practices, code reviews, and 84k+ documents including over 5k PRs and 5 years of Slack discussions. But the most valuable data source is you. If you find gaps, updates, or suggestions in the guidance, PRs are welcome! This is a team sport.
 
@@ -71,7 +78,9 @@ Or copy the `AGENTS.md` from this repo as a starting point.
 
 ## Usage
 
-Once installed, the skill activates automatically when your request matches ACK development tasks:
+Once installed, the skills activate automatically when your request matches their domain.
+
+**Building skills (`ack-dev`):**
 
 ```
 Add the DatabaseName field to the RDS Instance CRD
@@ -79,6 +88,16 @@ Create a new controller for AWS Backup
 Debug why my S3 bucket is stuck in Creating
 Add the RepositoryCreationTemplate resource to the ECR controller
 ```
+
+**Maintainer skills (`ack-triage`, `ack-review`):**
+
+```
+Walk through open ACK community issues from the last 30 days
+Triage community#1234 and draft a clarifying comment
+Review s3-controller PR 42 against ACK conventions
+```
+
+The maintainer skills use Python scripts run via [`uv`](https://docs.astral.sh/uv/), with PEP 723 inline dependency metadata — no global install or shared venv needed. They require a GitHub token (auto-discovered from `GITHUB_TOKEN` or `gh auth token`). See `references/github-auth.md` and `references/dry-run-conventions.md` for the auth setup and the read-by-default contract.
 
 Note: Progressive disclosure may not work perfectly in all agent implementations — feel free to have your agent read all references directly.
 
@@ -99,19 +118,49 @@ We incorporate learnings from controller development, customer feedback, and tea
 ## Structure
 
 ```
-skills/ack-dev/                 # Agent Skill directory
-├── SKILL.md                    # Core instructions and common workflows
-├── scripts/                    # Repetitive tasks or things we want to be deterministic
-│   ├── build-controller.sh     # Build controller with correct env vars
-│   ├── verify-build.sh         # Post-build sanity checks
-│   └── setup-e2e.sh            # E2E test environment setup
-└── references/
-    ├── environment-setup.md    # Dev environment setup
-    ├── code-generation.md      # Code-gen internals and wrapper handling
-    ├── testing.md              # E2E test patterns and file structure
-    ├── contributing-codegen.md # Contributing to the code-generator
-    ├── pr-workflow.md          # PR ordering and review guidance
-    └── troubleshooting.md      # Common issues, debugging, resources
+ack-dev-skills/
+├── lib/                              # Shared Python (used by maintainer skills)
+│   ├── gh_client.py                  # PyGithub + httpx GraphQL, auth, scope check, retry
+│   ├── normalize.py                  # Issue/PR/diff normalization and idempotency hash
+│   └── confirm.py                    # Dry-run + interactive-confirm helper
+├── references/                       # Shared docs the maintainer skills link to
+│   ├── repo-map.md                   # ACK org repo structure
+│   ├── github-auth.md                # Token discovery, scopes, install prereqs
+│   ├── dry-run-conventions.md        # The --apply / DRY_RUN / exit-code contract
+│   └── ack-labels.md                 # Canonical label vocabulary
+├── skills/
+│   ├── ack-dev/                      # Building skill
+│   │   ├── SKILL.md
+│   │   ├── scripts/
+│   │   │   ├── build-controller.sh
+│   │   │   ├── verify-build.sh
+│   │   │   └── setup-e2e.sh
+│   │   └── references/
+│   │       ├── environment-setup.md
+│   │       ├── code-generation.md
+│   │       ├── testing.md
+│   │       ├── contributing-codegen.md
+│   │       ├── pr-workflow.md
+│   │       └── troubleshooting.md
+│   ├── ack-triage/                   # Maintainer: scan + cluster + walk + act
+│   │   ├── SKILL.md
+│   │   ├── references/
+│   │   │   ├── walk-flow.md            # per-item context block + decision contract
+│   │   │   ├── clustering-recipes.md
+│   │   │   ├── issue-quality-rubric.md
+│   │   │   └── clarifying-comment-templates.md
+│   │   └── scripts/
+│   │       ├── scan.py                 # read-only org-wide fetch
+│   │       ├── fetch_issue.py
+│   │       ├── post_comment.py
+│   │       └── apply_labels.py
+│   └── ack-review/                   # Maintainer: PR initial review
+│       ├── SKILL.md
+│       ├── references/pr-review-rubric.md
+│       └── scripts/
+│           ├── fetch_pr.py
+│           └── post_review.py
+└── .claude-plugin/plugin.json
 ```
 
 ## License

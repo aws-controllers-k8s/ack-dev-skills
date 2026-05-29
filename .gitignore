@@ -1,0 +1,12 @@
+# uv caches and venvs (PEP 723 scripts may stash here)
+.venv/
+__pycache__/
+*.pyc
+
+# Local outputs from the maintainer skills
+/scan.json
+/issue.json
+/pr.json
+/review.json
+/comment.md
+.cache/
