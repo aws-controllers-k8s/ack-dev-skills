@@ -310,6 +310,32 @@ resources:
 - `sdk_update_pre_build_request` / `sdk_update_post_build_request` - Before/after building update input
 - `sdk_delete_pre_build_request` - Before building delete input
 
+Note `sdk_find_post_set_output` is **not** a hook point. A ReadMany resource uses `sdk_read_many_post_set_output`.
+
+---
+
+## Custom Update Paths and Drift
+
+Needed when a resource takes `update_operation.custom_method_name`, or when the read call cannot round-trip every Spec field. Full detail in [custom-update-paths.md](references/custom-update-paths.md) — the rules below are the ones that cause silent data loss or an update that never converges.
+
+**Ask whether the request carries the change, not whether a payload was built.** AWS update APIs overwrite only the members a request sets, so a change the request omits is discarded silently: the API returns success, the controller reports success, and the same delta returns every resync with `Synced=True`. Probe each differing path on its own and check the built request for that path's own member.
+
+**`ackcompare.Delta.DifferentAt` matches ancestor paths.** Adding `A.B.C` makes `DifferentAt("A.B")` and `DifferentAt("A")` true. So probing a nested leaf opens its parent's builder block, the parent is rebuilt from surviving members, and the payload is non-nil *even though the probed leaf is not carried*. A nil-payload check cannot see a nested removal.
+
+**Nil and empty-but-present are different wire values.** The smithy-go serializers gate lists on `v == nil`, not length, so a non-nil empty slice is sent as an explicit `[]` — which AWS sometimes documents as the operation itself (FSx: "Use `[]` to remove all client NIDs"). Test list presence with `!IsNil()`, then check the model's `length.min` to decide whether the empty form is legal at all.
+
+**Smithy `required` is not the whole contract.** Overwrite-only `*Updates` shapes often mark nothing required, and conditional requirements ("Required if `SizingMode` is `USER_PROVISIONED`") appear only in prose. Read the member docs.
+
+**Validate before any side effect.** A delta can mix a supported change with an unsupported one, and with tags. Tags go through `TagResource`/`UntagResource` separately, so validate every non-tag path *before* `syncTags` and before the update call — otherwise tags are mutated, or an irreversible change applied, and the rest fails afterwards.
+
+**No field should be both `compare.is_ignored` and mutable.** `compare.is_ignored` stops a perpetual delta but leaves the field silently unchangeable. A create-only field belongs under `is_immutable` so the edit is rejected instead of accepted as a no-op.
+
+**`is_immutable` does not stop an optional field from being added.** It emits a field-level CEL transition rule (`self == oldSelf`), and Kubernetes skips transition rules when the old value is absent. Optional immutable fields need controller-side enforcement as well.
+
+**Restoring desired over observed in a `*_post_set_output` hook masks drift.** Restore only write-only members (secret references) and create-only-unobservable ones; never a member that appears in an `Update*` shape, and never a whole nested struct because one member is write-only.
+
+**Mutation-test every guard.** These are conditionals that silently do nothing when written wrong. Break each one and confirm a test fails *on an assertion*, not on a build error.
+
 ---
 
 ## Code Generation Quick Reference
@@ -343,6 +369,10 @@ For customization patterns (skip fields, rename fields, mark immutable, custom h
 [ ] Code compiles: go build -o bin/controller ./cmd/controller
 [ ] E2E tests added with create/update/delete coverage
 [ ] E2E tests verify Synced condition after operations
+[ ] No field is both `compare.is_ignored` and mutable
+[ ] Every `terminal_codes` entry checked against its own model documentation (never a catch-all 400)
+[ ] Destructive delete options (cascade, force, skip-final-backup) are opt-in via annotation, not defaulted on
+[ ] Custom update path validated per [custom-update-paths.md](references/custom-update-paths.md)
 [ ] Commits squashed into single commit
 ```
 
@@ -363,6 +393,7 @@ For PR ordering when building new controllers, see [pr-workflow.md](references/p
 
 - [Environment Setup](references/environment-setup.md) — Read when setting up a dev environment or cloning repos
 - [Code Generation Deep Dive](references/code-generation.md) — Read when debugging code-gen output, wrapper fields, or OriginalShapeName issues
+- [Custom Update Paths and Drift](references/custom-update-paths.md) — Read when a resource needs a custom update method, when the read call cannot round-trip Spec fields, or when an update is accepted but never applied
 - [Testing](references/testing.md) — Read when writing or debugging E2E tests
 - [Running E2E Tests](references/running-e2e-tests.md) — Read when running e2e tests locally with KIND via test-infra
 - [Contributing to Code-Generator](references/contributing-codegen.md) — Read when making changes to the code-generator itself

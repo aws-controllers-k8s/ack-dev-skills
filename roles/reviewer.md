@@ -18,11 +18,11 @@ This role operates in two modes:
 
 ### Plan Review Mode
 
-Triggered when the orchestrator passes `Mode: plan-review`. In this mode, review the plan document (NOT implementation code). Skip sections 2-6 of the methodology. Instead, execute the **Plan Review Checklist** below.
+Triggered when the orchestrator passes `Mode: plan-review`. In this mode, review the plan document (NOT implementation code). Skip sections 1a-6 of the methodology. Instead, execute the **Plan Review Checklist** below.
 
 ### Implementation Review Mode (default)
 
-The standard mode. Review implementation output against the plan. Execute sections 1-6 of the methodology as documented below.
+The standard mode. Review implementation output against the plan. Execute sections 1, 1a and 2-6 of the methodology as documented below.
 
 ## Plan Review Checklist
 
@@ -51,6 +51,25 @@ For every custom hook or `custom_method_name` proposed in the plan:
 - [ ] **Standard generated code insufficient**: Ask "what would `sdkCreate`/`sdkUpdate`/`sdkDelete` generate without this customization?" If the standard generated code would work correctly, the hook is unnecessary and is a MUST FIX.
 - [ ] **Justification is specific**: "Other resources in this controller use this hook" is NOT valid justification. Each hook must justify itself independently.
 
+### Mutability and Convergence
+
+Cheapest place to catch a non-converging update is before it is written. For each field the plan calls mutable:
+
+- [ ] **Present in an `Update*` shape**: verified against the SDK struct, not assumed. A field absent from every update shape is create-only and belongs under `is_immutable` — not `compare.is_ignored`, which accepts the edit and silently drops it.
+- [ ] **Round-trippable by the read call**: if the Describe/List output shape does not carry the member under the same name, the plan says how the value is recovered. "Ignore it in comparison" is not an answer for a mutable field.
+- [ ] **Immutable optional fields note controller-side enforcement**: `is_immutable` alone emits a CEL transition rule, which Kubernetes skips when the old value is absent, so an unset optional field can still be added later.
+
+For a plan proposing `update_operation.custom_method_name`, it must also state how removals and empty lists are handled, and that validation precedes `syncTags`. See [Custom Update Paths and Drift](../skills/ack-dev/references/custom-update-paths.md).
+
+### Destructive Defaults
+
+- [ ] **No destructive option defaults to on.** Cascade delete, force delete and skip-final-backup must be opt-in via annotation. Reasoning that the child objects "live inside the parent anyway" is not sufficient — they may be managed by Terraform, the console, or a sibling CR. MUST FIX.
+- [ ] **Delete-time-only options are annotations, not Spec fields.**
+
+### Error Code Claims
+
+- [ ] **Each proposed terminal code was read in the model, not guessed.** A service's generic/catch-all 4xx code must never be terminal; services also return it for transient in-progress states. MUST FIX.
+
 ### Field Mapping Accuracy
 
 - [ ] **Renames verified against SDK**: Each rename maps an actual field name from the SDK `*Input`/`*Output` structs to the proposed name.
@@ -76,6 +95,41 @@ Read `generator.yaml` in CONTROLLER_DIR and verify every option the plan specifi
 - [ ] Wrapper field paths correct (compare against plan's Wrapper Fields section, if applicable)
 - [ ] Cross-resource references use correct path AND correct same-service/cross-service handling (same-service: NO `service_name`; cross-service: YES `service_name`)
 - [ ] Only non-default fields are configured (no redundant entries)
+- [ ] **No field is both `compare.is_ignored` and mutable** — that combination accepts a user edit and silently never applies it. A create-only field belongs under `is_immutable` instead, so the edit is rejected.
+- [ ] **Every `terminal_codes` entry was checked against its own model documentation.** A service's generic/catch-all 4xx code (e.g. one documented as "a generic error indicating a failure with a client request") must NEVER be terminal — services also return it for transient in-progress states, and marking it terminal strands the finalizer. MUST FIX.
+- [ ] **ARN member with a non-standard name carries `is_arn: true`.** Code-gen only auto-detects a member named `arn`/`<Resource>arn`. Without it `Status.ACKResourceMetadata.ARN` stays nil and `syncTags` silently never runs.
+
+### 1a. Convergence and Safety Review
+
+These checks catch defects that pass build and unit tests but misbehave against the real API. Apply them whenever the implementation has a custom update path, non-round-trippable Spec fields, secret-backed fields, or delete-time options. Full detail: [Custom Update Paths and Drift](../skills/ack-dev/references/custom-update-paths.md).
+
+**Does the update converge?**
+
+- [ ] For each mutable field, the update path is checked against the **request the API would receive**, not against whether a payload was produced. AWS update APIs overwrite only the members a request sets, so an omitted change is discarded silently while the controller reports success — and `Delta.DifferentAt` matches ancestor paths, so a nested removal still yields a non-nil payload.
+- [ ] Removing a previously set optional field either reaches the API or produces a terminal error. A silent no-op that re-reports the same delta every resync is a MUST FIX.
+- [ ] List presence is tested with `!IsNil()`, not `len() > 0`. Nil and explicitly-empty are different wire values (the smithy serializers gate on `v == nil`), and an empty list is sometimes the documented operation.
+- [ ] Validation happens **before** any side effect — before `syncTags` and before the update call. A delta mixing a supported change with an unsupported one must not apply the supported half or mutate tags first.
+- [ ] Claims that a member is required cite the model; claims that it is *not* required account for conditional requirements, which Smithy `required` cannot express and which appear only in the member's prose.
+
+**Is any declared state lost?**
+
+- [ ] Spec members the read call cannot round-trip are handled, and any `*_post_set_output` restore hook copies desired over observed **only** for write-only or create-only-unobservable members — never for a member that appears in an `Update*` shape, and never a whole nested struct because one member is write-only.
+- [ ] A `KNOWN LIMITATION` comment describing data loss is not a mitigation. MUST FIX.
+- [ ] Any baseline the controller records lives where the runtime persists it. Status is patched every reconcile; `patchResourceMetadataAndSpec` (annotations/Spec) does not run on an idle reconcile, so an annotation-only baseline can never be established for an adopted resource.
+
+**Is anything destructive or unrecoverable?**
+
+- [ ] No destructive default. Cascade delete, force delete, and skip-final-backup are opt-in via annotation. A wedged finalizer on a visible 4xx is recoverable; deleted data is not. MUST FIX.
+- [ ] Delete-time-only options are annotations, not Spec fields — Describe never returns them (perpetual delta) and they describe what happens when the resource stops existing.
+- [ ] An unrecoverable lifecycle state gets a terminal condition, but **never on the delete path**: delete calls ReadOne first and aborts on any error but NotFound, so a terminal read error makes deletion impossible — and deletion is usually the documented recovery.
+- [ ] Optional fields marked `is_immutable` are also enforced controller-side. `is_immutable` emits a field-level CEL transition rule, and Kubernetes skips transition rules when the old value is absent, so an unset optional field can still be added after creation.
+- [ ] An empty resolved Secret is an error, not an omission — `SecretValueFromReference` returns `("", nil)` and the builder then drops the member.
+
+**Do the tests actually test?**
+
+- [ ] Each guard has been mutation-tested: break it, and a test fails **on an assertion**, not on a build error. A mutation that only fails to compile has tested nothing. Note this in the review if unverifiable.
+- [ ] No test pins the buggy behaviour as intended (e.g. "removing a field is a no-op", "an empty list does not count"). MUST FIX.
+- [ ] No subtest is silently skipped (`go test -v`).
 
 ### 2. Generated Code Inspection
 

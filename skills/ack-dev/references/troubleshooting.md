@@ -7,6 +7,7 @@
 - Hook Variable Names by SDK Method
 - input_wrapper_field_path Gotchas
 - E2E Test Environment Issues
+- Prow CI Issues
 - Debugging Tips
 - Resources
 
@@ -80,6 +81,31 @@ Also: if you rename a field (e.g. `SelectionId` → `ID`), code-gen loses the ma
 **Express/slow-provisioning resources timeout:** Default `wait_until` timeout is 35 min. For resources that take longer (e.g. MSK Express clusters), pass `timeout_seconds=EXPRESS_WAIT_TIMEOUT_SECONDS` (60 min) only for those specific tests rather than bumping the global default.
 
 **Kafka version compatibility:** Express brokers require specific Kafka versions. Check the `BadRequestException` error message for the valid versions list. Version format matters (e.g. `3.6.x` vs `3.6.0` vs `3.8.x`).
+
+**A terminal create error still costs the full wait.** acktest's `wait_on_condition` polls until timeout regardless of `ACK.Terminal`, so the failure surfaces as a bare `assert False` with the real reason only in the controller logs. A local `wait_for_synced_or_terminal()` helper that aborts on Terminal and puts the AWS message in the assertion is worth adding to a new controller's e2e helper.
+
+**Time-of-day strings must be quoted in test YAML.** YAML 1.1 parses an unquoted `2:03:00` as a base-60 integer (`7380`), and the API server then rejects the CR with "must be of type string: integer". Quote maintenance-window and backup-start-time values per field; leave numeric fields such as `storageCapacity` unquoted.
+
+## Prow CI Issues
+
+**Never conclude a repo lacks CI from a local `test-infra` clone.** Prow config is served from the live cluster, not from your checkout. The same trap applies to `test/e2e/requirements.txt`, which pins acktest to a **commit** — verify an acktest API against `git cat-file -p <pin>:src/acktest/...`, not the working tree, which may sit on an unmerged branch.
+
+**All jobs red at once = the base branch moved, not 8 failures.** Compare the `BaseSHA:` that `gh pr checks` prints against your merge-base. If they differ, prow's merge of your PR into the new base conflicted and every job failed at that step. Rebase rather than reading the logs. A resource PR is especially exposed to this because a runtime/code-generator bump on main touches exactly the files a resource PR also touches: `go.mod`, `go.sum`, `pkg/version/version.go`, `apis/<version>/ack-generate-metadata.yaml`. Resolve those to your side, then bump the runtime pin to match main by hand — code generation does **not** touch that pin — and `go mod tidy`.
+
+**Run `verify-code-gen` locally before pushing**, from an up-to-date test-infra:
+
+```bash
+cd test-infra && git fetch origin && git checkout origin/main
+SERVICE=<svc> ./cd/scripts/verify-code-gen.sh
+```
+
+Same script CI runs (~8 min, versus a full CI cycle). Checking out `origin/main` matters: the script's list of non-deterministic patterns it filters changes over time, and a stale clone produces failures CI would not report.
+
+**`verify-code-gen` regenerates with code-generator `main`, not the commit in `ack-generate-metadata.yaml`.** Generate against `upstream/main`, or a code-generator release bump fails the job on its own with `Semver mismatch in ack-generate-metadata.yaml: committed=vX, regenerated=vY` — the script validates the semver prefix (and rejects a `dirty` suffix) before filtering the git-describe suffix as noise.
+
+**Prow deletes job pods after completion**, so `https://prow.ack.aws.dev/log?job=...&id=...` returns `pods not found` for anything but a live run. Finished logs live in the S3 bucket named in the job URL; read-only credentials are enough to `aws s3 cp` the `build-log.txt`.
+
+**`verify-attribution` prints the full diff of existing-vs-generated `ATTRIBUTION.md`.** Extract that unified diff from the build log and `git apply` it (with `--check` first) to fix the file without running `attribution-gen` at all.
 
 ## Debugging Tips
 
