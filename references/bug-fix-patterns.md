@@ -4,6 +4,8 @@
 
 Reference for the most frequent root causes found in closed ACK bugs. When investigating a new bug, match the symptom to a pattern below for the likely fix approach.
 
+Patterns 12-14 concern hand-written update paths; [Custom Update Paths and Drift](../skills/ack-dev/references/custom-update-paths.md) covers that area in full.
+
 ## Pattern 1: Infinite Reconcile Due to JSON/Whitespace/Ordering Differences
 
 **Symptoms:** Controller constantly reconciles detecting diffs on the same field. Diff shows the same semantic value with different formatting (whitespace, key ordering, redundant fields). Common with IAM policy documents, JSON strings, and list fields.
@@ -140,3 +142,35 @@ There is a matching `deletable.when` for delete-state guards.
 **Fix (fallback — custom):** Only if the guard needs logic beyond a status-in-list check, add a `sdk_update_pre_build_request` hook that returns a requeue.
 
 > Prefer `updateable.when` over a hand-written `sdk_update_pre_build_request` requeue helper — the generated guard is identical and needs no `hooks.go` code or unit test.
+
+## Pattern 12: Update Reports Success but AWS Never Applied the Change
+
+**Symptoms:** A field edit is accepted, the controller logs a successful update, `Synced=True` — and the same delta reappears on every resync. AWS still holds the old value. Most often seen when *removing* a previously set optional field, or on a nested member inside a struct whose other members survived.
+
+**Root Cause:** AWS update APIs overwrite only the members a request actually sets. Generated and hand-written builders assign a member only when the desired pointer is non-nil, so a removed field is simply absent from the request — and the API cannot distinguish "leave alone" from "unset". A guard that checks only whether a payload was produced misses this, because `Delta.DifferentAt` matches **ancestor** paths: probing a nested leaf opens its parent's builder block, the parent is rebuilt from surviving members, and the payload comes back non-nil.
+
+**Fix:** Judge each differing path against the **built request**, not against the builder's control flow — check whether the request carries that path's own member. Exempt only the cases where absence *is* the API's expression of the change (an `Add*`/`Remove*` list pair, or a sibling mode member that requires its partner omitted). Reject the rest with a terminal error so the user sees it instead of a silent no-op.
+
+See [Custom Update Paths and Drift](../skills/ack-dev/references/custom-update-paths.md) for the full check and its traps.
+
+> Do **not** write a test asserting the no-op ("removing a field from the spec has no effect"). That pins the bug as if it were the contract.
+
+## Pattern 13: User Edit Silently Ignored After a Restore Hook Was Added
+
+**Symptoms:** A field the user changes never reaches AWS — no delta is detected at all. Appears shortly after a `sdk_create_post_set_output` / `sdk_read_many_post_set_output` hook was added to stop Spec fields being erased.
+
+**Root Cause:** The restore hook copies the **desired** value over the **observed** one. That makes a user edit compare equal to what AWS reported, so the delta is always empty and update never runs. Especially damaging when a whole nested struct is restored because a single member is write-only — Describe name-matches the struct's other members, so assigning the parent masks all of them.
+
+**Fix:**
+- Restore only write-only members (secret references) and create-only-and-unobservable members. Never restore a member that appears in an `Update*` shape.
+- Copy the single write-only member, not its parent struct.
+- When a mutable field is reported under a *different* output path, recover the **observed** value in the read hook instead of ignoring comparison.
+- Treat create and read paths separately — there is no Describe response on create.
+
+## Pattern 14: Emptying a List Is Rejected or Ignored
+
+**Symptoms:** Setting a list field to `[]` either produces a terminal error from the controller, or is accepted and never applied, even though the AWS docs describe the empty list as a supported operation.
+
+**Root Cause:** The controller collapsed "omitted" and "explicitly empty" into one state, usually via a `len(x) == 0` presence test. The smithy-go serializers gate list members on `v == nil`, **not** on length, so a non-nil empty slice is a distinct wire value — an explicit `[]`. `aws.ToStringSlice` returns a non-nil empty slice, so an empty Spec list does reach the request.
+
+**Fix:** Test list presence with `!IsNil()`. Then consult the model's `length.min` for that list to decide whether the empty form is legal: `min: 0` means it may be a real operation, `min > 0` means the empty form is an invalid request and should be rejected as invalid rather than treated as a dropped change.

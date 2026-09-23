@@ -83,6 +83,16 @@ hooks:
 ```
 6. Rebuild and verify the controller still compiles
 
+If the plan calls for a custom update path, non-round-trippable Spec fields, or secret-backed fields, follow [Custom Update Paths and Drift](../skills/ack-dev/references/custom-update-paths.md). The rules that cause silent data loss:
+
+- Check whether the **built request carries the change**, not whether a payload was produced — `Delta.DifferentAt` matches ancestor paths, so a nested removal still yields a non-nil payload.
+- Validate every non-tag path **before** `syncTags` and before the update call.
+- Test list presence with `!IsNil()`, not `len() > 0`.
+- Restore desired-over-observed only for write-only or create-only-unobservable members, and never a whole nested struct because one member is write-only.
+- Write controller-recorded baselines to Status, not annotations — `patchResourceMetadataAndSpec` does not run on an idle reconcile.
+
+**Mutation-test every guard you write.** Each is a conditional that silently does nothing when wrong: break it, confirm a test fails, and confirm it fails **on an assertion** rather than a build error. Report in your summary which guards you verified this way. Never write a test that pins the buggy behaviour as intended (e.g. "removing a field is a no-op").
+
 ### Step 4: E2E Tests
 
 Implement or extend the e2e tests your plan's Test Plan calls for, following [testing.md](../skills/ack-dev/references/testing.md) and your task-specific reference:

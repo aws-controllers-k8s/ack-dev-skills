@@ -55,6 +55,25 @@ For each CRUD operation (`api_op_*.go`), note:
 | Immutable fields? | Mark `is_immutable: true` |
 | Fields to show in kubectl get? | Add `print.name` |
 | Periodic re-sync needed? | Add `reconcile.requeue_on_success_seconds` |
+| Field absent from every `Update*` shape? | Mark `is_immutable: true` — NOT `compare.is_ignored`, which accepts the edit and silently drops it |
+| Optional field marked immutable? | Also enforce controller-side; CEL transition rules are skipped when the old value is absent |
+| Describe can't round-trip a Spec member? | Recover the **observed** value in a read hook. Only restore desired-over-observed for write-only or create-only-unobservable members |
+| Delete API takes options (cascade, force, skip-final-backup)? | Expose as **annotations**, default to the non-destructive choice |
+| Unrecoverable lifecycle state (e.g. FAILED)? | Add it to `synced.when` or set a terminal condition — but never terminal on the delete path |
+| Secret-backed field? | Empty resolved Secret must be an error; rotation needs a last-applied-reference baseline + `delta_pre_compare` |
+
+## Convergence and Safety
+
+Beyond "does it build", a new resource has to converge and must not destroy data. These are the failure modes that pass unit tests:
+
+- **An update the request does not carry is discarded silently.** AWS update APIs overwrite only the members a request sets, so removing an optional field, or a nested member whose siblings survived, produces a success response and a delta that returns forever. Judge each change against the request the API would receive.
+- **`compare.is_ignored` on a mutable field makes it permanently unchangeable.**
+- **A restore hook that copies desired over observed masks drift**, so the update never runs.
+- **A catch-all 4xx in `terminal_codes` strands the finalizer.** Read each code's own documentation.
+- **A destructive default cannot be undone.** Never default a cascade on.
+- **Nil and explicitly-empty lists are different wire values**, and an empty list is sometimes the documented operation.
+
+Full treatment, including the traps in each: [Custom Update Paths and Drift](../skills/ack-dev/references/custom-update-paths.md).
 
 ## Generated vs Custom Code
 
