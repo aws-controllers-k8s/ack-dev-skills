@@ -185,7 +185,7 @@ Investigate:
 3. `pkg/resource/<resource>/sdk.go` — CRUD field mappings
 4. `templates/hooks/<resource>/` — template hooks
 5. `pkg/resource/<resource>/hooks.go` — custom hooks
-6. AWS SDK model at `~/go/pkg/mod/github.com/aws/aws-sdk-go-v2/service/<name>@<version>/api_op_*.go`
+6. AWS SDK model at `~/go/pkg/mod/github.com/aws/aws-sdk-go-v2/service/<name>@<version>/api_op_*.go` (never use aws-sdk-go v1)
 
 ### A4: Implement the fix
 
@@ -209,13 +209,40 @@ If `check-breaking-changes.sh` exits non-zero: STOP, revert, inform user.
 
 Scan other resources in the same controller for the same bug pattern. Fix all instances in the same branch.
 
-### A7: Test
+### A7: Unit tests
 
 ```
 bash scripts/run-tests.sh <service>
 ```
 
-### A8: Commit
+### A7.5: Add e2e test (only when meaningful)
+
+Only add an e2e test when the change is **verifiable through observable AWS state**. Skip e2e tests when:
+- The field is write-only / not returned by Describe (no observable state to assert)
+- The operation is too long-running to assert completion (e.g., major version upgrades)
+- The test would only assert `not_synced` after a patch — that proves nothing specific to the fix
+- The behavior is already covered by unit tests and there's no additional value from an integration test
+
+When an e2e test IS warranted (the fix changes observable AWS behavior that can be polled):
+
+E2e tests live in `test/e2e/` in the controller repo.
+
+**Read the controller's existing tests first.** Each service controller's e2e tests have their own patterns, helper conventions, and fixture styles. Before writing anything, read `test/e2e/tests/test_<resource>.py` and `test/e2e/<resource>.py` in the controller you're working on. Match their style exactly — do not import patterns from other controllers.
+
+**No comments or docstrings on tests.** ACK e2e tests do not use comments or docstrings. The test method name should be descriptive enough.
+
+**Prefer modifying an existing test over adding a new one** when the fix can be verified by extending existing assertions. Only add a new test method when the bug exercises a distinct code path that existing tests don't cover.
+
+**Do NOT run the e2e tests** — they require AWS credentials and a live K8s cluster. Just write them.
+
+### A8: Self-review before commit
+
+- [ ] If hooks were added/modified: correct variable names per hook point, uses renamed field names, no nil pointer risks
+- [ ] If hooks were added: no declarative `generator.yaml` alternative exists for the same behavior
+- [ ] Controller compiles and unit tests pass
+- [ ] Fix addresses root cause (not just the symptom)
+
+### A9: Commit
 
 ```
 fix: <subject line>
@@ -228,6 +255,8 @@ Resolves aws-controllers-k8s/community#<issue-number>
 ---
 
 ## Phase 2B: Add a New Resource
+
+**IMPORTANT: One resource per branch.** If the issue requests multiple resources, implement each one as a separate branch. Complete one resource fully (through commit), then start the next on a fresh branch from main.
 
 ### B1: Feasibility check
 
@@ -256,14 +285,29 @@ If ambiguous: STOP, present operations, ASK.
 
 ### B2: Investigate the AWS API
 
+**Never use aws-sdk-go v1.** The module `github.com/aws/aws-sdk-go` (no `-v2` suffix) is deprecated. Always use `github.com/aws/aws-sdk-go-v2`. The `AWS_SDK_GO_VERSION` env var refers to the v2 module version.
+
+**SDK version bump:** If the resource's operations don't exist in the controller's current SDK version, bump it:
+```
+cd <controller-repo>
+go get github.com/aws/aws-sdk-go-v2/service/<name>@<new-version>
+go mod tidy
+```
+Then when generating (B6), export the version so the code-generator finds the new operations:
+```
+export AWS_SDK_GO_VERSION=<new-version>
+```
+
 For each CRUD operation (`api_op_*.go`), note:
 - Required vs optional fields on Create
 - Spec fields (Create input) vs Status fields (Create output only)
 - Whether Update uses same field names as Create (renames needed?)
-- Extra fields from Describe (need `from.operation` + `is_read_only`)
+- Extra fields from Describe that need explicit mapping (need `from.operation`)
 - State machine enums → `synced.when`
-- Tag support → `tags.ignore: true` if none
+- Tag support → `tags.ignore: true` if none, explicit config if supported
 - Non-standard patterns (parent ARN, composite keys, non-standard 404)
+
+**Verify constraints against the SDK.** Do not infer API limitations by analogy with other resources in the same service. If you believe fields are mutually exclusive or an API only accepts one update at a time, verify by reading the actual `*Input` struct. Unverified constraints lead to unnecessary custom code.
 
 ### B3: Check current controller state
 
@@ -286,8 +330,8 @@ Work through this checklist:
 | Resource in `ignore.resource_names`? | Remove it |
 | Field names differ across operations? | Add `renames` for EACH operation |
 | Async lifecycle states? | Add `synced.when` |
-| No tag support? | Add `tags.ignore: true` |
-| Fields only in Describe output? | Add `from.operation` + `is_read_only: true` |
+| No tag support? | Add `tags.ignore: true` — every new resource MUST have explicit tags config |
+| Fields only in Describe output that need explicit mapping? | Add `from.operation` (do NOT add `is_read_only` — code-generator infers placement automatically) |
 | Depends on parent resource? | Add `references` |
 | Cross-service reference? | Add `references.service_name` |
 | Update needs custom logic? | Add `update_operation.custom_method_name` |
@@ -303,7 +347,9 @@ Present proposed changes to user and explain reasoning before applying. If ambig
 
 ### B6: Generate and validate
 
+If the SDK was bumped, export the version before regenerating:
 ```
+export AWS_SDK_GO_VERSION=<new-version>
 bash scripts/regenerate.sh <service>
 bash scripts/check-breaking-changes.sh <service>
 ```
@@ -321,19 +367,79 @@ If wrong, adjust generator.yaml and regenerate.
 
 ### B8: Add custom code (if needed)
 
-Only when: API quirks, multi-call updates, ReadOne post-processing, custom comparison.
+**Hooks are a last resort.** Before proposing any hook, verify that no declarative `generator.yaml` option achieves the same result. Common declarative alternatives that eliminate hooks:
+- `synced.when` — replaces hooks that set Synced condition based on status fields
+- `is_immutable: true` — replaces hooks that reject updates to certain fields
+- `exceptions.terminal_codes` — replaces hooks that set Terminal condition on errors
+- `late_initialize` — replaces hooks that handle server-defaulted fields
+- `is_iam_policy: true` — replaces hooks that do JSON-normalized comparison
+
+Do NOT copy hooks from other resources in the controller without verifying the hook is still necessary. Older resources may use hooks for behaviors that generator.yaml now handles declaratively.
+
+Only add hooks when: API quirks not coverable by config, multi-call updates, ReadOne post-processing, custom comparison logic.
 Templates in `templates/hooks/<resource_name>/<hook_name>.go.tpl`
 Implementations in `pkg/resource/<resource_name>/hooks.go`
 
 If you added hooks, regenerate again (B6).
 
-### B9: Test
+### B9: Unit tests
 
 ```
 bash scripts/run-tests.sh <service>
 ```
 
-### B10: Commit
+### B9.5: Add e2e tests (only when necessary)
+
+Only add e2e tests when the resource's behavior is **verifiable through observable AWS state**. For most new resources this IS warranted — a basic CRUD test proves the generated code works end-to-end.
+
+Skip e2e tests when:
+- The resource has no Describe/Get operation to observe state
+- The resource requires complex pre-existing infrastructure that can't be set up in a fixture
+- There's no meaningful state to assert beyond "it didn't error"
+
+When e2e tests ARE warranted:
+
+E2e tests live in `test/e2e/` in the controller repo. Read the controller's existing tests first and match their style exactly.
+
+**No comments or docstrings on tests.**
+
+**Files to create:**
+
+1. **Resource YAML template** — `test/e2e/resources/<resource_name>.yaml`
+2. **Helper module** — `test/e2e/<resource_name>.py` (get, wait_until, wait_until_deleted, AttributeMatcher)
+3. **Test file** — `test/e2e/tests/test_<resource_name>.py` (fixture + CRUD test)
+
+**Do NOT run the e2e tests** — they require AWS credentials and a live K8s cluster. Just write them.
+
+### B10: Self-review before commit
+
+Before committing, validate your work against this checklist:
+
+**generator.yaml:**
+- [ ] Resource removed from `ignore.resource_names`
+- [ ] Field renames cover ALL operations where the field appears (Create, Read, Update, Delete, List) — missing renames are the #1 source of bugs
+- [ ] Immutable fields marked with `is_immutable: true`
+- [ ] Error codes match actual AWS API behavior (researched, not guessed)
+- [ ] Tags configuration is explicitly set (`tags.ignore: true` if no tag support)
+- [ ] No redundant field config — do NOT add `is_read_only`, `output_wrapper_field_path`, `print`, or other options that the code-generator infers automatically. Only configure fields that need overrides (e.g., `is_immutable`, `is_primary_key`, `references`, `from.operation`)
+
+**Generated code:**
+- [ ] CRD Spec/Status placement is correct
+- [ ] No unexpected fields in the CRD (fields that should be ignored)
+
+**Custom hooks (if any):**
+- [ ] Each hook is genuinely necessary (no declarative alternative exists)
+- [ ] Correct variable names: `sdk_create_*` → `desired`, `sdk_read_one_*` → `ko`, `sdk_update_*` → `desired`/`latest`, `sdk_delete_*` → `r`
+- [ ] Uses renamed field names (e.g., `r.ko.Spec.Name` not `r.ko.Spec.BackupVaultName`)
+- [ ] No nil pointer risks
+
+**Build:**
+- [ ] Controller compiles (`go build -o bin/controller ./cmd/controller`)
+- [ ] Unit tests pass
+
+If any item fails, fix it before committing. Do NOT commit broken code.
+
+### B11: Commit
 
 ```
 feat: add <ResourceName> resource to <service> controller
@@ -369,8 +475,7 @@ Check which operation returns the field:
 
 | Scenario | Configuration |
 |----------|--------------|
-| Field only in Describe output | `from.operation` + `from.path` |
-| Field is output-only | `is_read_only: true` |
+| Field only in Describe output that needs explicit mapping | `from.operation` + `from.path` (do NOT add `is_read_only` — inferred automatically) |
 | Field has server-set defaults | `late_initialize:` with `skip_incomplete_check: {}` |
 | Show in kubectl get | `print.name: <COLUMN_NAME>` |
 | Different name in another operation | Add `renames` |
@@ -402,11 +507,29 @@ If breaking: STOP, revert, inform user.
 - `pkg/resource/<resource>/sdk.go` — mapping correct?
 - `pkg/resource/<resource>/delta.go` — comparison included?
 
-### C8: Test
+### C8: Unit tests
 
 ```
 bash scripts/run-tests.sh <service>
 ```
+
+### C8.5: Add e2e test (only when necessary)
+
+Only add an e2e test when the new field produces **observable AWS state that can be polled and asserted**. Skip e2e tests when:
+- The field is write-only / not returned by Describe (no observable state to assert on)
+- The field is a one-time trigger parameter (e.g., only meaningful during a specific long-running operation)
+- The only possible assertion is `not_synced` after a patch — that proves nothing specific to the field
+- The behavior is already fully covered by unit tests
+
+When an e2e test IS warranted:
+
+E2e tests live in `test/e2e/` in the controller repo. Read the controller's existing tests first and match their style exactly.
+
+**No comments or docstrings on tests.**
+
+**Prefer modifying an existing test over adding a new one.** Only add a new test method when the field exercises a distinct code path.
+
+**Do NOT run the e2e tests** — they require AWS credentials and a live K8s cluster. Just write them.
 
 ### C9: Commit
 
@@ -529,3 +652,7 @@ Consult these when you need detailed context:
 - If multiple valid approaches exist, ASK THE USER
 - Present generator.yaml changes for review before applying
 - If the issue is already fixed, draft a concise response (2-3 sentences) with the PR/release link. Present to user. STOP.
+- **One commit per issue.** All changes for a single issue (code, tests, generated files) go in ONE commit. If you need to make follow-up changes after the initial commit, use `git commit --amend` instead of creating additional commits. Only create a separate commit if the user explicitly asks for one.
+- **One resource per PR/branch.** Never add multiple resources in a single branch. If an issue requests multiple resources, implement each resource as a separate branch with its own commit. Work one resource at a time, complete it fully, then start the next on a fresh branch.
+</content>
+</invoke>
