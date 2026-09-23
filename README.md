@@ -180,6 +180,9 @@ skills/ack-dev/                 # Agent Skill directory
 skills/resolve-issue/           # Issue triage and resolution skill
 └── SKILL.md                    # End-to-end issue workflow (triage → classify → fix)
 
+skills/review-pr/               # PR review skill
+└── SKILL.md                    # End-to-end ACK PR review (diff → ACK checks → structured findings)
+
 references/                     # Shared reference docs (available to all skills)
 ├── generator-yaml-reference.md # Complete generator.yaml option docs
 ├── bug-fix-patterns.md         # Common root causes and fixes
