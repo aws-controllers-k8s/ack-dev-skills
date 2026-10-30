@@ -42,6 +42,19 @@ if ackcompare.HasNilDifference(a.ko.Spec.AllocatedStorage, b.ko.Spec.AllocatedSt
 }
 ```
 
+## Pattern 2b: Field Not Round-Tripped by the Read Operation
+
+**Symptoms:** Either a perpetual delta (update fires every resync), or the user's declared value is erased from the CR after create, or an edit never propagates because it compares equal.
+
+**Root Cause:** Read output omits the field or returns it under a different path, so code-gen cannot set it.
+
+**Fix, in order of preference:**
+1. **Recover the observed value** in `sdk_read_many_post_set_output` / `sdk_read_one_post_set_output` when Read returns it elsewhere (e.g. fsx Lustre `AutoImportPolicy` under `DataRepositoryConfiguration`). Only when the user declared the field — otherwise an AWS default manufactures a delta.
+2. **Restore from desired** only for write-only (secret refs) and create-only immutable members. Never restore a member that appears in an Update shape — it masks drift. Never restore a whole nested struct when only one member is write-only.
+3. `compare.is_ignored` last. No field may be both compare-ignored and mutable.
+
+Check whether `set` config or an existing hook already covers it before adding one.
+
 ## Pattern 3: Unchanged Field Sent in Update Causes API Error
 
 **Symptoms:** Modifying any field triggers a terminal error about a *different* field. Error like "Modification of X is not supported" even though X wasn't changed.
@@ -127,6 +140,8 @@ Or add `sdk_read_many_post_build_request` hook to set filter parameters.
 
 **Root Cause:** Generated `sdkUpdate` has no guard on the resource's current status. AWS updates are asynchronous (ACTIVE → UPDATING → ACTIVE) and reject any update issued while not ACTIVE.
 
+**First confirm the API actually rejects it.** Many async APIs accept unrelated updates mid-flight and reject a re-sent in-flight change with a retryable error; a guard there only makes the controller stricter than the API. Verify against a real resource when docs are vague.
+
 **Fix (preferred — declarative):** Add an `updateable.when` guard. Code-gen emits a status check at the top of `sdkUpdate` that returns `ackrequeue.NeededAfter` (transient, NOT terminal) when the status is not in the allowed set, so no update is attempted mid-flight:
 ```yaml
 updateable:
@@ -135,7 +150,7 @@ updateable:
       in: [ACTIVE]
   requeue_after_seconds: 30   # optional, default 30
 ```
-There is a matching `deletable.when` for delete-state guards.
+There is a matching `deletable.when` for delete-state guards. `updateable.when` is **not emitted** when `update_operation.custom_method_name` is set — the guard must live in the custom method.
 
 **Fix (fallback — custom):** Only if the guard needs logic beyond a status-in-list check, add a `sdk_update_pre_build_request` hook that returns a requeue.
 

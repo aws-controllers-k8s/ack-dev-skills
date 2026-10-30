@@ -57,9 +57,9 @@ For every custom hook or `custom_method_name` proposed in the plan:
 - [ ] **Status fields verified**: Fields claimed as Status-only actually do NOT appear in any `*Input` struct.
 - [ ] **is_arn field confirmed**: The field marked `is_arn: true` is actually the resource's ARN (not a reference to another resource's ARN).
 
-### Design Principles
+### Golden Rules
 
-- [ ] Plan is consistent with every section of [Design Principles](../references/design-principles.md). A violation of §1–§4 is MUST FIX.
+- [ ] Plan is consistent with the Golden Rules and terminal-code rules in the [ack-dev skill](../skills/ack-dev/SKILL.md). A violation is MUST FIX.
 
 ### Output
 
@@ -135,17 +135,17 @@ Check `test/e2e/tests/test_<resource>.py` and `test/e2e/resources/<resource>.yam
 - [ ] Replacement variables used for dynamic values (`$RESOURCE_NAME`, etc.)
 - [ ] Follows patterns of existing tests in the controller
 
-### 6. Design Principles
+### 6. Golden Rules and Review Lessons
 
-Check the implementation against [Design Principles](../references/design-principles.md):
-- [ ] No Status fields added for controller bookkeeping (§1)
-- [ ] No pre-validation of required members, list minimums or enums; no lifecycle gate without recorded evidence (§2)
-- [ ] Every terminal code is fixable by editing the Spec, and none is a catch-all (§3)
-- [ ] Delete-time options are annotations; absent sends nothing (§4)
-- [ ] No mutable field is both compare-ignored and restored/ignored; restore hooks touch only write-only or create-only members (§5)
-- [ ] All stuttering fields renamed (top-level, nested, Status); printer columns, hooks and e2e use the new JSON names (§6)
-- [ ] Every ACK-managed ID/ARN field, nested and list included, has `references` (§7)
-- [ ] Comments match the code; no overstated guarantees; cited upstream issues are open and accurate (§8)
+Check the implementation against the Golden Rules in the [ack-dev skill](../skills/ack-dev/SKILL.md) and the referenced sections:
+- [ ] No Status fields added for controller bookkeeping
+- [ ] No pre-validation of required members, list minimums or enums; no lifecycle gate without recorded evidence
+- [ ] Every terminal code is fixable by editing the Spec, and none is a catch-all
+- [ ] Delete-time options are annotations; absent sends nothing
+- [ ] No mutable field is compare-ignored; restore hooks touch only write-only or create-only members (bug-fix-patterns Pattern 2b)
+- [ ] All stuttering fields renamed (top-level, nested, Status); printer columns, hooks and e2e use the new JSON names
+- [ ] Every ACK-managed ID/ARN field, nested and list included, has `references`
+- [ ] Comments match the code; no overstated guarantees; cited upstream issues are open and accurate
 
 ### 7. Plan Compliance
 

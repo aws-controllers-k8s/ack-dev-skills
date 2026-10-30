@@ -54,6 +54,14 @@ Set `AWS_SDK_GO_VERSION` explicitly for reproducibility. It takes the **core** `
 
 **Two model-source variants exist, and the service-specific one wins.** Code-gen fetches the Smithy model from either the core tag (`AWS_SDK_GO_VERSION` / metadata `aws_sdk_go_version`) or the per-service tag (`AWS_SERVICE_SDK_VERSION` / metadata `aws_service_sdk_version`, e.g. `service/<svc>/v1.29.0`). When the service-specific version is set it **takes precedence** and the core version is ignored for model fetching. When neither env var is passed, `make build-controller` reads both keys from `apis/<version>/ack-generate-metadata.yaml`. The two tags can resolve to **different model contents**, so a field/shape present at one version may be absent at another — always confirm against the source code-gen will actually use (see Troubleshooting → "Field not appearing in CRD").
 
+**Generic gaps get generic fixes.** If a problem would affect any resource with the same shape (immutable optional fields, secret rotation, presence tracking), don't build controller-specific machinery for it. Document the gap in a `generator.yaml` comment, link the code-generator/runtime/community issue (file one if none exists), and move on. Before citing an upstream PR or issue as the fix, check its state.
+
+**Status fields are API surface.** Never add a Status field to hold controller bookkeeping (baselines, fingerprints, last-applied refs) — removing it later is a breaking change.
+
+**The controller is never stricter than the API.** Don't pre-validate required members, list minimums, enum values or conditional requirements — the SDK and service own validation, and a service may relax a rule without it being a breaking change. Let the request fail with the API's own (retryable) error. Likewise, don't block updates on a lifecycle state without evidence the API rejects them there; when it matters, verify against a real resource in a dev account. Allowed: a *convergence* check that rejects a delta the built request cannot carry, since the API would drop it silently.
+
+**Comments and PR text stay true.** Fix a comment in the same commit that makes it stale, and don't overstate guarantees (e.g. "atomic" when tag sync and update are separate calls).
+
 **Only configure non-default fields in generator.yaml.** If a field uses all defaults (mutable, no references, etc.), don't add it. Less config = less maintenance.
 
 **Squash commits before final push:**
@@ -62,6 +70,7 @@ git reset --soft <base-commit>
 git commit -m "add support for <Resource> resource"
 git push --force origin <branch>
 ```
+Squash only before review starts. If a maintainer has pushed to your branch (e.g. merged main), add commits on top — never force-push over their commits.
 
 ---
 
@@ -265,6 +274,8 @@ The code-generator handles reference resolution automatically. The generated cod
 
 **ACK convention:** Return error on invalid reference, don't create resource.
 
+**Add references for every ACK-managed ID/ARN**, including **nested** and **list** members (e.g. fsx `OntapConfiguration.PreferredSubnetId` → ec2 `Subnet`, `OntapConfiguration.RouteTableIds` → ec2 `RouteTable`). Check ec2 (Subnet, SecurityGroup, RouteTable, VPC), kms (Key), iam (Role), s3 (Bucket) and the service's own controller.
+
 **Same-service references: do NOT set `service_name`.** When referencing a resource in the same controller (e.g., BackupPlan referencing BackupVault), omit `service_name`. Setting it (even correctly, e.g., `service_name: backup`) causes the generated code to produce an unresolved import alias (`backupapitypes`) and a compile error. Without `service_name`, code-gen correctly uses the local API types. Only set `service_name` for cross-service references (e.g., IAM Role, KMS Key).
 
 ---
@@ -288,6 +299,13 @@ resources:
         404:
           code: ResourceNotFoundException
 ```
+
+**Terminal codes: only errors fixable by editing this Spec.** A terminal condition stops the requeue, so anything caused by external state wedges the CR. Never list:
+- a service's catch-all code (`BadRequest`, or `ValidationException` when it also covers transient states);
+- a code also raised by another resource's state (e.g. a security group not yet permissive), or one only an immutable field could fix — no edit clears it;
+- idempotency-token errors — the SDK mints a fresh token next reconcile.
+
+Read each code's documentation; "sounds permanent" is not evidence.
 
 **Custom hooks** are for cases where declarative config isn't enough (e.g., complex conditional logic, extra API calls).
 
@@ -370,7 +388,6 @@ For PR ordering when building new controllers, see [pr-workflow.md](references/p
 - [Troubleshooting](references/troubleshooting.md) — Read when debugging build failures, controller issues, or test problems
 - [generator.yaml Reference](../../references/generator-yaml-reference.md) — Complete documentation of every `generator.yaml` option (top-level, resource-level, operations, field-level, renames, exceptions, hooks). The authority for "is there a declarative option for this?"
 - [New Resource Checklist](../../references/new-resource-checklist.md) — Feasibility checks, API investigation steps, and the **Configuration Decision Table** (which field-level option applies when).
-- [Design Principles](../../references/design-principles.md) — Maintainer review rules: generic gaps over bespoke fixes, no pre-validation, terminal-code test, renames and references, PR mechanics.
 - [Bug Fix Patterns](../../references/bug-fix-patterns.md) — 10 common root causes in closed ACK bugs and their fixes.
 - [SDK Version Resolution](../../references/sdk-version-resolution.md) — How to resolve and read the SDK model version code-gen will actually use (`ack-generate-metadata.yaml` + `go.mod`). The #1 add-field gotcha.
 - [Adding a Single Field](../../references/field-addition.md) — Task-specific supplement to the generic Implementer/Reviewer SOPs for adding one field to an existing resource. Read this when the task is a single-field addition.

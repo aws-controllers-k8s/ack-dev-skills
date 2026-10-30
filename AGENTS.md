@@ -21,7 +21,6 @@ Shared reference documentation available to all skills:
 | [generator.yaml Reference](references/generator-yaml-reference.md) | Complete documentation of all `generator.yaml` options — top-level config, resource-level (synced, updateable, deletable, tags, print, compare), operations, field-level (classification, immutability, comparison, references, late-init), renames, exceptions, and hooks. Sourced from `code-generator/pkg/config/`. |
 | [Bug Fix Patterns](references/bug-fix-patterns.md) | 10 common root causes found in closed ACK bugs — infinite reconcile, nil panics, orphaned resources, missing filters, broken tags, etc. Match symptoms to fix approaches. |
 | [New Resource Checklist](references/new-resource-checklist.md) | Feasibility checks (standalone CRD vs field-on-parent), API investigation steps, configuration decision table, and post-generation review checklist. |
-| [Design Principles](references/design-principles.md) | Rules maintainers apply in review: generic gaps over controller-specific fixes, controller never stricter than the API, terminal codes reachable from the Spec, protective defaults, round-trip recovery, renames, references, PR mechanics. |
 
 ## Setup
 

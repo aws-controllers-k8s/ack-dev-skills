@@ -48,7 +48,7 @@ Fields that cannot be changed after creation (e.g., primary key, encryption type
 |----------|-----------|---------------|-------|
 | Not Found (404) |   |               | Some APIs return AccessDeniedException instead of ResourceNotFoundException |
 | Already Exists |    |               |       |
-| Terminal State |    |               | One row per code. Notes must say which Spec edit fixes it; see design-principles.md §3 |
+| Terminal State |    |               | One row per code. Notes must say which Spec edit fixes it; see Error Codes in the ack-dev skill |
 
 ## Tags
 
@@ -98,7 +98,7 @@ Delete-time-only API parameters (final backup, cascade). Absent ⇒ send nothing
 | Gap | Generic? | Upstream issue | Impact on this resource |
 |-----|----------|----------------|------------------------|
 
-Behaviors that code-gen or the runtime cannot express today. Generic gaps get an issue link, not custom machinery (design-principles.md §1).
+Behaviors that code-gen or the runtime cannot express today. Generic gaps get an issue link, not custom machinery (Golden Rules in the ack-dev skill).
 
 ## Implementation Notes
 

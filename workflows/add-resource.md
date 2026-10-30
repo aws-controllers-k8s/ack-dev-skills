@@ -113,12 +113,7 @@ Report to the user:
 
 ### Phase 5: PR Review Iteration
 
-When addressing maintainer comments:
-- Re-check [Design Principles](../references/design-principles.md) before replying; most review rounds trace to one of them.
-- Regenerate with code-generator `upstream/main` after any generator.yaml change.
-- If a maintainer pushed to the branch, commit on top; never force-push over their commits.
-- When a comment questions API behavior, verify against the API (dev account if needed) before arguing or adding code.
-- Reply on each thread with the commit that addresses it. Keep replies short.
+When addressing maintainer comments, re-check the Golden Rules in the [ack-dev skill](../skills/ack-dev/SKILL.md) (most review rounds trace to one of them) and follow Code Review Tips in [pr-workflow.md](../skills/ack-dev/references/pr-workflow.md).
 
 ## Claude Code Execution
 

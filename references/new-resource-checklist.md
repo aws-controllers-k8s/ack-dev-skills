@@ -58,7 +58,9 @@ For each CRUD operation (`api_op_*.go`), note:
 | Fields to show in kubectl get? | Add `print.name` |
 | Periodic re-sync needed? | Add `reconcile.requeue_on_success_seconds` |
 
-Also apply [Design Principles](design-principles.md).
+**Delete-time options** (skip final backup, cascade delete of children) go in annotations, not the Spec. When absent, send nothing so the service's default applies; never default a destructive option on. Enum-valued annotations take the API's enum strings, validated against `<Enum>("").Values()`.
+
+**Renames change the CRD API** — rename every stuttering field (incl. nested and Status, e.g. `FileSystemId` → `ID`) before the first release, then grep for the old JSON name in printer columns, hooks and e2e.
 
 ## Generated vs Custom Code
 

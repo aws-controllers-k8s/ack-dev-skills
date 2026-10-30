@@ -42,7 +42,7 @@ For each operation, catalog the input and output shape fields:
 Then classify each field:
 - **Spec vs Status**: Fields the user sets → Spec. Fields AWS assigns → Status.
 - **Mutable vs Immutable**: Can it be changed after creation?
-- **Rename candidate**: Does the name stutter with the resource name? (e.g., `BackupVaultName` → `Name`, `FileSystemType` → `Type`, Status `FileSystemId` → `ID`). Check every field, not only the primary key, and nested members too (nested renames use `go_tag`; see [Design Principles](../references/design-principles.md) §6).
+- **Rename candidate**: Does the name stutter with the resource name? (e.g., `BackupVaultName` → `Name`, `FileSystemType` → `Type`, Status `FileSystemId` → `ID`). Check every field, not only the primary key, and nested members too (nested renames use `go_tag`; see the Renames section of the [generator.yaml reference](../references/generator-yaml-reference.md)).
 
 ### Step 4: Research Non-Standard Patterns
 
@@ -77,13 +77,14 @@ For each hook you DO propose, document:
 2. The logic needed
 3. **Why generator.yaml config is insufficient** (cite the specific limitation)
 
-### Step 8: Apply the Design Principles
+### Step 8: Apply the Golden Rules
 
-Check every decision against [Design Principles](../references/design-principles.md). In particular:
-- Justify each terminal code as "reachable from this Spec" (§3).
-- Propose no pre-validation and no lifecycle gating without evidence (§2).
-- For any gap that is generic to code-gen or the runtime, record it under Known Gaps with an issue link instead of planning custom machinery or new Status fields (§1).
-- Delete-time options: annotations, absent ⇒ service default (§4).
+Check every decision against the Golden Rules and Error Codes sections of the [ack-dev skill](../skills/ack-dev/SKILL.md). In particular:
+- Justify each terminal code as fixable by editing this Spec.
+- Propose no pre-validation and no lifecycle gating without evidence.
+- For any gap generic to code-gen or the runtime, record it under Known Gaps with an issue link instead of planning custom machinery or new Status fields.
+- Delete-time options: annotations, absent ⇒ service default ([checklist](../references/new-resource-checklist.md)).
+- Non-round-tripped fields: follow [Pattern 2b](../references/bug-fix-patterns.md).
 
 ### Step 9: Produce the Plan
 
@@ -102,7 +103,7 @@ Your plan is complete when:
 - Field renames are proposed with rationale and all affected operations listed
 - Custom hooks are identified only where generator.yaml config is insufficient
 - Non-standard patterns are documented with proposed solutions
-- Every decision is consistent with the Design Principles, and generic gaps are listed under Known Gaps
+- Every decision is consistent with the Golden Rules, and generic gaps are listed under Known Gaps
 
 ## Constraints
 
