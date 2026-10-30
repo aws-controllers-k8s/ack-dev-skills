@@ -106,9 +106,19 @@ Report to the user:
 3. **Files created/modified**: Grouped by category (config, hooks, tests, generated)
 4. **Build status**: Controller compiles, unit tests pass
 5. **E2E test status**: Pass/fail, which tests ran, any remaining failures
-6. **Next steps**:
+6. **Known gaps**: from the plan, with issue links
+7. **Next steps**:
    - Squash commits
    - Open PR (or push to existing branch)
+
+### Phase 5: PR Review Iteration
+
+When addressing maintainer comments:
+- Re-check [Design Principles](../references/design-principles.md) before replying; most review rounds trace to one of them.
+- Regenerate with code-generator `upstream/main` after any generator.yaml change.
+- If a maintainer pushed to the branch, commit on top; never force-push over their commits.
+- When a comment questions API behavior, verify against the API (dev account if needed) before arguing or adding code.
+- Reply on each thread with the commit that addresses it. Keep replies short.
 
 ## Claude Code Execution
 

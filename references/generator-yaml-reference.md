@@ -238,8 +238,11 @@ fields:
 
 ```yaml
 fields:
-  Type_:
+  Type:                              # key is the (renamed) Go field name
     go_tag: 'json:"type,omitempty"'  # Fix underscore suffix from keyword collision
+  # Also the only way to rename a nested member's JSON name:
+  Config.FileSystemAdministratorsGroup:
+    go_tag: 'json:"administratorsGroup,omitempty"'
 ```
 
 ### Comparison
@@ -335,7 +338,7 @@ fields:
 
 ## Renames (`resources.<Name>.renames`)
 
-Fix stutter or inconsistent naming between operations. **Must specify rename for EACH operation that uses the field.**
+Fix stutter or inconsistent naming between operations. **Must specify rename for EACH operation that uses the field.** Applies to top-level input/output members only; for nested members use `go_tag`. Update `print` `json_path`s after renaming.
 
 ```yaml
 renames:

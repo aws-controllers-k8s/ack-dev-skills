@@ -184,6 +184,7 @@ references/                     # Shared reference docs (available to all skills
 ├── generator-yaml-reference.md # Complete generator.yaml option docs
 ├── bug-fix-patterns.md         # Common root causes and fixes
 ├── new-resource-checklist.md   # Feasibility checks and config decisions
+├── design-principles.md       # Maintainer review rules for new resources
 ├── field-addition.md           # Field-specific implementer/reviewer specifics
 └── sdk-version-resolution.md   # Resolving/reading the correct SDK model version
 ```

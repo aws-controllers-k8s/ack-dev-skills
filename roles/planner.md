@@ -42,7 +42,7 @@ For each operation, catalog the input and output shape fields:
 Then classify each field:
 - **Spec vs Status**: Fields the user sets → Spec. Fields AWS assigns → Status.
 - **Mutable vs Immutable**: Can it be changed after creation?
-- **Rename candidate**: Does the name stutter with the resource name? (e.g., `BackupVaultName` → `Name`)
+- **Rename candidate**: Does the name stutter with the resource name? (e.g., `BackupVaultName` → `Name`, `FileSystemType` → `Type`, Status `FileSystemId` → `ID`). Check every field, not only the primary key, and nested members too (nested renames use `go_tag`; see [Design Principles](../references/design-principles.md) §6).
 
 ### Step 4: Research Non-Standard Patterns
 
@@ -61,7 +61,7 @@ Read the following in CONTROLLER_DIR:
 
 ### Step 6: Identify Cross-Resource References
 
-For each field that references another AWS resource (e.g., IAM Role ARN, KMS Key ARN, VPC ID):
+For each field that references another AWS resource (e.g., IAM Role ARN, KMS Key ARN, VPC ID) — including **nested and list members** such as a per-type config's `PreferredSubnetId` or `RouteTableIds`:
 - Is the referenced resource in the **same** service controller? → omit `service_name`
 - Is it in a **different** service controller? → include `service_name`
 - What's the field path on the referenced resource? (usually `Status.ACKResourceMetadata.ARN`)
@@ -77,7 +77,15 @@ For each hook you DO propose, document:
 2. The logic needed
 3. **Why generator.yaml config is insufficient** (cite the specific limitation)
 
-### Step 8: Produce the Plan
+### Step 8: Apply the Design Principles
+
+Check every decision against [Design Principles](../references/design-principles.md). In particular:
+- Justify each terminal code as "reachable from this Spec" (§3).
+- Propose no pre-validation and no lifecycle gating without evidence (§2).
+- For any gap that is generic to code-gen or the runtime, record it under Known Gaps with an issue link instead of planning custom machinery or new Status fields (§1).
+- Delete-time options: annotations, absent ⇒ service default (§4).
+
+### Step 9: Produce the Plan
 
 Write the plan following `roles/schemas/plan-output.md` exactly. Every section must be populated.
 
@@ -94,6 +102,7 @@ Your plan is complete when:
 - Field renames are proposed with rationale and all affected operations listed
 - Custom hooks are identified only where generator.yaml config is insufficient
 - Non-standard patterns are documented with proposed solutions
+- Every decision is consistent with the Design Principles, and generic gaps are listed under Known Gaps
 
 ## Constraints
 

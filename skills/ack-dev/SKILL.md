@@ -370,6 +370,7 @@ For PR ordering when building new controllers, see [pr-workflow.md](references/p
 - [Troubleshooting](references/troubleshooting.md) — Read when debugging build failures, controller issues, or test problems
 - [generator.yaml Reference](../../references/generator-yaml-reference.md) — Complete documentation of every `generator.yaml` option (top-level, resource-level, operations, field-level, renames, exceptions, hooks). The authority for "is there a declarative option for this?"
 - [New Resource Checklist](../../references/new-resource-checklist.md) — Feasibility checks, API investigation steps, and the **Configuration Decision Table** (which field-level option applies when).
+- [Design Principles](../../references/design-principles.md) — Maintainer review rules: generic gaps over bespoke fixes, no pre-validation, terminal-code test, renames and references, PR mechanics.
 - [Bug Fix Patterns](../../references/bug-fix-patterns.md) — 10 common root causes in closed ACK bugs and their fixes.
 - [SDK Version Resolution](../../references/sdk-version-resolution.md) — How to resolve and read the SDK model version code-gen will actually use (`ack-generate-metadata.yaml` + `go.mod`). The #1 add-field gotcha.
 - [Adding a Single Field](../../references/field-addition.md) — Task-specific supplement to the generic Implementer/Reviewer SOPs for adding one field to an existing resource. Read this when the task is a single-field addition.

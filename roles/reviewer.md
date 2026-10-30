@@ -18,11 +18,11 @@ This role operates in two modes:
 
 ### Plan Review Mode
 
-Triggered when the orchestrator passes `Mode: plan-review`. In this mode, review the plan document (NOT implementation code). Skip sections 2-6 of the methodology. Instead, execute the **Plan Review Checklist** below.
+Triggered when the orchestrator passes `Mode: plan-review`. In this mode, review the plan document (NOT implementation code). Skip sections 2-7 of the methodology. Instead, execute the **Plan Review Checklist** below.
 
 ### Implementation Review Mode (default)
 
-The standard mode. Review implementation output against the plan. Execute sections 1-6 of the methodology as documented below.
+The standard mode. Review implementation output against the plan. Execute sections 1-7 of the methodology as documented below.
 
 ## Plan Review Checklist
 
@@ -56,6 +56,10 @@ For every custom hook or `custom_method_name` proposed in the plan:
 - [ ] **Renames verified against SDK**: Each rename maps an actual field name from the SDK `*Input`/`*Output` structs to the proposed name.
 - [ ] **Status fields verified**: Fields claimed as Status-only actually do NOT appear in any `*Input` struct.
 - [ ] **is_arn field confirmed**: The field marked `is_arn: true` is actually the resource's ARN (not a reference to another resource's ARN).
+
+### Design Principles
+
+- [ ] Plan is consistent with every section of [Design Principles](../references/design-principles.md). A violation of §1–§4 is MUST FIX.
 
 ### Output
 
@@ -131,7 +135,19 @@ Check `test/e2e/tests/test_<resource>.py` and `test/e2e/resources/<resource>.yam
 - [ ] Replacement variables used for dynamic values (`$RESOURCE_NAME`, etc.)
 - [ ] Follows patterns of existing tests in the controller
 
-### 6. Plan Compliance
+### 6. Design Principles
+
+Check the implementation against [Design Principles](../references/design-principles.md):
+- [ ] No Status fields added for controller bookkeeping (§1)
+- [ ] No pre-validation of required members, list minimums or enums; no lifecycle gate without recorded evidence (§2)
+- [ ] Every terminal code is fixable by editing the Spec, and none is a catch-all (§3)
+- [ ] Delete-time options are annotations; absent sends nothing (§4)
+- [ ] No mutable field is both compare-ignored and restored/ignored; restore hooks touch only write-only or create-only members (§5)
+- [ ] All stuttering fields renamed (top-level, nested, Status); printer columns, hooks and e2e use the new JSON names (§6)
+- [ ] Every ACK-managed ID/ARN field, nested and list included, has `references` (§7)
+- [ ] Comments match the code; no overstated guarantees; cited upstream issues are open and accurate (§8)
+
+### 7. Plan Compliance
 
 - [ ] All items from the plan are addressed in the implementation
 - [ ] Any deviations are documented in the Implementer's summary with justification
