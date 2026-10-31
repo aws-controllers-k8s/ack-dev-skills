@@ -46,7 +46,7 @@ For each CRUD operation (`api_op_*.go`), note:
 | Update API rejects unchanged fields being re-sent? | Add `update_operation.omit_unchanged_fields: true` |
 | No tag support? | Add `tags.ignore: true` |
 | Fields only in Describe output? | Add `from.operation` + `is_read_only: true` |
-| Field holds an ID/ARN of an ACK-managed resource (incl. nested/list)? | Add `references` |
+| Depends on parent resource, or a field holds an ID/ARN of an ACK-managed resource (incl. nested/list)? | Add `references` |
 | Cross-service reference? | Add `references.service_name` |
 | Update needs custom logic | Add `update_operation.custom_method_name` |
 | Server sets defaults? | Add `late_initialize` with `skip_incomplete_check: {}` |

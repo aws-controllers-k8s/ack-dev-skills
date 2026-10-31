@@ -48,7 +48,7 @@ Fields that cannot be changed after creation (e.g., primary key, encryption type
 |----------|-----------|---------------|-------|
 | Not Found (404) |   |               | Some APIs return AccessDeniedException instead of ResourceNotFoundException |
 | Already Exists |    |               |       |
-| Terminal State |    |               | One row per code. Notes must say which Spec edit fixes it; see Error Codes in the ack-dev skill |
+| Terminal State |    |               | Errors that mean the resource cannot be reconciled. One row per code; Notes must say which Spec edit fixes it (see Error Codes in the ack-dev skill) |
 
 ## Tags
 
