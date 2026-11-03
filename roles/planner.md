@@ -42,7 +42,7 @@ For each operation, catalog the input and output shape fields:
 Then classify each field:
 - **Spec vs Status**: Fields the user sets → Spec. Fields AWS assigns → Status.
 - **Mutable vs Immutable**: Can it be changed after creation?
-- **Rename candidate**: Does the name stutter with the resource name? (e.g., `BackupVaultName` → `Name`, `FileSystemType` → `Type`, Status `FileSystemId` → `ID`). Check every field, not only the primary key, and nested members too (nested renames use `go_tag`; see the Renames section of the [generator.yaml reference](../references/generator-yaml-reference.md)).
+- **Rename candidate**: Does the name stutter with the resource name? (e.g., `BackupVaultName` → `Name`, `<Resource>Type` → `Type`, Status `<Resource>Id` → `ID`). Check every field, not only the primary key, and nested members too (nested renames use `go_tag`; see the Renames section of the [generator.yaml reference](../references/generator-yaml-reference.md)).
 
 ### Step 4: Research Non-Standard Patterns
 
@@ -61,7 +61,7 @@ Read the following in CONTROLLER_DIR:
 
 ### Step 6: Identify Cross-Resource References
 
-For each field that references another AWS resource (e.g., IAM Role ARN, KMS Key ARN, VPC ID) — including **nested and list members** such as a per-type config's `PreferredSubnetId` or `RouteTableIds`:
+For each field that references another AWS resource (e.g., IAM Role ARN, KMS Key ARN, VPC ID) — including **nested and list members** such as `<Parent>.SubnetId` or `<Parent>.RouteTableIds`:
 - Is the referenced resource in the **same** service controller? → omit `service_name`
 - Is it in a **different** service controller? → include `service_name`
 - What's the field path on the referenced resource? (usually `Status.ACKResourceMetadata.ARN`)
@@ -82,7 +82,7 @@ For each hook you DO propose, document:
 Check every decision against the Golden Rules and Error Codes sections of the [ack-dev skill](../skills/ack-dev/SKILL.md). In particular:
 - Justify each terminal code as fixable by editing this Spec.
 - Propose no pre-validation and no lifecycle gating without evidence.
-- For any gap generic to code-gen or the runtime, record it under Known Gaps with an issue link instead of planning custom machinery or new Status fields.
+- For any gap generic to code-gen or the runtime, record it under Known Gaps — with an existing issue if you find one, otherwise a suggested issue title and summary for a human to file — instead of planning custom machinery or new Status fields.
 - Delete-time options: annotations, absent ⇒ service default ([checklist](../references/new-resource-checklist.md)).
 - Non-round-tripped fields: follow [Pattern 2b](../references/bug-fix-patterns.md).
 

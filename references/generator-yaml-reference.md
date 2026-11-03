@@ -240,9 +240,11 @@ fields:
 fields:
   Type:                              # key is the (renamed) Go field name
     go_tag: 'json:"type,omitempty"'  # Fix underscore suffix from keyword collision
-  # Also the only way to rename a nested member's JSON name:
-  Config.FileSystemAdministratorsGroup:
-    go_tag: 'json:"administratorsGroup,omitempty"'
+  # `renames` only reaches top-level members. To rename a nested member's
+  # JSON name, set go_tag on its full path from the Spec root (the Go name
+  # is unchanged):
+  <Parent>.<Child>.<Resource>Owner:
+    go_tag: 'json:"owner,omitempty"'
 ```
 
 ### Comparison

@@ -95,10 +95,10 @@ Delete-time-only API parameters (final backup, cascade). Absent ⇒ send nothing
 
 ## Known Gaps
 
-| Gap | Generic? | Upstream issue | Impact on this resource |
+| Gap | Generic? | Existing or suggested issue | Impact on this resource |
 |-----|----------|----------------|------------------------|
 
-Behaviors that code-gen or the runtime cannot express today. Generic gaps get an issue link, not custom machinery (Golden Rules in the ack-dev skill).
+Behaviors that code-gen or the runtime cannot express today. Generic gaps get an existing issue link or a suggested issue for a human to file, not custom machinery (Golden Rules in the ack-dev skill).
 
 ## Implementation Notes
 

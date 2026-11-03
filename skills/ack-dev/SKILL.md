@@ -54,7 +54,7 @@ Set `AWS_SDK_GO_VERSION` explicitly for reproducibility. It takes the **core** `
 
 **Two model-source variants exist, and the service-specific one wins.** Code-gen fetches the Smithy model from either the core tag (`AWS_SDK_GO_VERSION` / metadata `aws_sdk_go_version`) or the per-service tag (`AWS_SERVICE_SDK_VERSION` / metadata `aws_service_sdk_version`, e.g. `service/<svc>/v1.29.0`). When the service-specific version is set it **takes precedence** and the core version is ignored for model fetching. When neither env var is passed, `make build-controller` reads both keys from `apis/<version>/ack-generate-metadata.yaml`. The two tags can resolve to **different model contents**, so a field/shape present at one version may be absent at another — always confirm against the source code-gen will actually use (see Troubleshooting → "Field not appearing in CRD").
 
-**Generic gaps get generic fixes.** If a problem would affect any resource with the same shape (immutable optional fields, secret rotation, presence tracking), don't build controller-specific machinery for it. Document the gap in a `generator.yaml` comment, link the code-generator/runtime/community issue (file one if none exists), and move on. Before citing an upstream PR or issue as the fix, check its state.
+**Generic gaps get generic fixes.** If a problem would affect any resource with the same shape (immutable optional fields, secret rotation, presence tracking), don't build controller-specific machinery for it. Document the gap in a `generator.yaml` comment, link the code-generator/runtime/community issue (if none exists, suggest one for a human to file), and move on. Before citing an upstream PR or issue as the fix, check its state.
 
 **Status fields are API surface.** Never add a Status field to hold controller bookkeeping (baselines, fingerprints, last-applied refs) — removing it later is a breaking change.
 
@@ -274,7 +274,7 @@ The code-generator handles reference resolution automatically. The generated cod
 
 **ACK convention:** Return error on invalid reference, don't create resource.
 
-**Add references for every ACK-managed ID/ARN**, including **nested** and **list** members (e.g. fsx `OntapConfiguration.PreferredSubnetId` → ec2 `Subnet`, `OntapConfiguration.RouteTableIds` → ec2 `RouteTable`). Check ec2 (Subnet, SecurityGroup, RouteTable, VPC), kms (Key), iam (Role), s3 (Bucket) and the service's own controller.
+**Add references for every ACK-managed ID/ARN**, including **nested** and **list** members (e.g. `<Parent>.SubnetId` → ec2 `Subnet`, `<Parent>.RouteTableIds` → ec2 `RouteTable`). Check ec2 (Subnet, SecurityGroup, RouteTable, VPC), kms (Key), iam (Role), s3 (Bucket) and the service's own controller.
 
 **Same-service references: do NOT set `service_name`.** When referencing a resource in the same controller (e.g., BackupPlan referencing BackupVault), omit `service_name`. Setting it (even correctly, e.g., `service_name: backup`) causes the generated code to produce an unresolved import alias (`backupapitypes`) and a compile error. Without `service_name`, code-gen correctly uses the local API types. Only set `service_name` for cross-service references (e.g., IAM Role, KMS Key).
 

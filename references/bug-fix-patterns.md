@@ -21,7 +21,7 @@ Policy:
   is_iam_policy: true
 ```
 
-## Pattern 2: Field Ignored in Delta but Missing Custom Compare Hook
+## Pattern 2a: Field Ignored in Delta but Missing Custom Compare Hook
 
 **Symptoms:** User changes a field value, but no update is propagated. Controller logs show no delta detected. Resource stays synced.
 
@@ -49,7 +49,7 @@ if ackcompare.HasNilDifference(a.ko.Spec.AllocatedStorage, b.ko.Spec.AllocatedSt
 **Root Cause:** Read output omits the field or returns it under a different path, so code-gen cannot set it.
 
 **Fix, in order of preference:**
-1. **Recover the observed value** in `sdk_read_many_post_set_output` / `sdk_read_one_post_set_output` when Read returns it elsewhere (e.g. fsx Lustre `AutoImportPolicy` under `DataRepositoryConfiguration`). Only when the user declared the field — otherwise an AWS default manufactures a delta.
+1. **Recover the observed value** in `sdk_read_many_post_set_output` / `sdk_read_one_post_set_output` when Read returns it elsewhere (e.g. a Spec field `Policy` that Describe reports under `Settings.Policy`). Only when the user declared the field — otherwise an AWS default manufactures a delta.
 2. **Restore from desired** only for write-only (secret refs) and create-only immutable members. Never restore a member that appears in an Update shape — it masks drift. Never restore a whole nested struct when only one member is write-only.
 3. `compare.is_ignored` last. No field may be both compare-ignored and mutable.
 
