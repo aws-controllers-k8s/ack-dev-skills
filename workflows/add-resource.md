@@ -106,9 +106,14 @@ Report to the user:
 3. **Files created/modified**: Grouped by category (config, hooks, tests, generated)
 4. **Build status**: Controller compiles, unit tests pass
 5. **E2E test status**: Pass/fail, which tests ran, any remaining failures
-6. **Next steps**:
+6. **Known gaps**: from the plan, with any existing or suggested upstream issues
+7. **Next steps**:
    - Squash commits
    - Open PR (or push to existing branch)
+
+### Phase 5: PR Review Iteration
+
+When addressing maintainer comments, re-check the Golden Rules in the [ack-dev skill](../skills/ack-dev/SKILL.md) (most review rounds trace to one of them) and follow Code Review Tips in [pr-workflow.md](../skills/ack-dev/references/pr-workflow.md).
 
 ## Claude Code Execution
 

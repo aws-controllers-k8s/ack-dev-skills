@@ -99,6 +99,10 @@ RELEASE_VERSION=v<major>.<minor>.<micro> ../code-generator/scripts/build-control
 - Explain non-obvious choices with comments
 - Include tests for new functionality
 - Learn from previous review feedback -- check similar merged PRs for patterns
+- Regenerate with code-generator `upstream/main` after any generator.yaml change — `verify-code-gen` uses main. Bump the runtime pin in `go.mod` if the generated code needs it
+- If a maintainer pushed to your branch, commit on top; never force-push over their commits
+- When a comment questions API behavior, verify against the API (a dev account if needed) before arguing or adding code
+- Reply on each thread with the commit that addresses it
 
 ## Common Misses
 

@@ -27,7 +27,7 @@ The code generator reads AWS API models and generates:
 - **Skip fields**: Add to `ignore.field_paths` in generator.yaml
 - **Rename fields**: Use `renames.operations` in generator.yaml
 - **Mark immutable**: Set `is_immutable: true`
-- **Add validation**: Use kubebuilder markers in custom types
+- **Add validation**: Use kubebuilder markers in custom types — only for what the API cannot enforce (e.g. immutability); don't duplicate API validation, or the controller becomes stricter than the API
 - **Custom conversion**: Implement in hooks
 
 ## OriginalShapeName Awareness

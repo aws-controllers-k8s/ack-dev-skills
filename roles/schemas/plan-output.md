@@ -48,7 +48,7 @@ Fields that cannot be changed after creation (e.g., primary key, encryption type
 |----------|-----------|---------------|-------|
 | Not Found (404) |   |               | Some APIs return AccessDeniedException instead of ResourceNotFoundException |
 | Already Exists |    |               |       |
-| Terminal State |    |               | Errors that mean the resource cannot be reconciled |
+| Terminal State |    |               | Errors that mean the resource cannot be reconciled. One row per code; Notes must say which Spec edit fixes it (see Error Codes in the ack-dev skill) |
 
 ## Tags
 
@@ -85,6 +85,20 @@ Same-service references omit `service_name` in generator.yaml. Cross-service ref
 | e.g., sdk_create_post_set_output | Set fields not in wrapper | Copy ARN from response |
 
 Only list hooks that are actually needed. Do not propose hooks for behavior that generator.yaml can handle.
+
+## Delete Options
+
+| Option | Annotation | Default when absent | Notes |
+|--------|-----------|---------------------|-------|
+
+Delete-time-only API parameters (final backup, cascade). Absent ⇒ send nothing so the service default applies. "N/A" if Delete takes only the identifier.
+
+## Known Gaps
+
+| Gap | Generic? | Existing or suggested issue | Impact on this resource |
+|-----|----------|----------------|------------------------|
+
+Behaviors that code-gen or the runtime cannot express today. Generic gaps get an existing issue link or a suggested issue for a human to file, not custom machinery (Golden Rules in the ack-dev skill).
 
 ## Implementation Notes
 
