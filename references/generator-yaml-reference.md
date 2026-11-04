@@ -90,6 +90,19 @@ deletable:
 
 If the resource is NOT in an allowed state, the delete is requeued.
 
+### Spec CEL Validations
+
+Adds kubebuilder `XValidation` markers to the generated resource Spec:
+
+```yaml
+spec_validations:
+  - rule: "!has(self.importFrom) || !has(self.certificate)"
+    message: "importFrom and certificate are mutually exclusive"
+```
+
+Both `rule` and `message` are required. Rules use Kubernetes CEL syntax and
+are enforced by CRD admission.
+
 ### Tags
 
 ```yaml
@@ -215,6 +228,7 @@ operations:
 | `is_arn` | bool | Override default ARN field detection |
 | `is_attribute` | bool | Field is part of an Attributes map (SNS/SQS pattern) |
 | `is_secret` | bool | Field becomes a SecretKeyReference |
+| `is_tls_secret` | bool | Field becomes a name/namespace-only TlsSecretReference when the controller owns the kubernetes.io/tls data-key convention |
 
 ### Immutability
 
