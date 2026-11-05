@@ -76,7 +76,7 @@ For each CRUD operation (`api_op_*.go`), note:
 
 ## Customization Pattern
 
-When the AWS API has quirks not handled by default generation:
+When the AWS API has behaviors not handled by default generation:
 1. Define a `custom_method_name` in `generator.yaml` under `update_operation`
 2. Implement the custom method in `hook.go`
 3. Use template hooks (`.go.tpl` files) to inject code into generated SDK call lifecycle

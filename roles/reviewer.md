@@ -35,6 +35,7 @@ For every constraint or limitation claimed in the plan (e.g., "fields X and Y ca
 - [ ] **Verified against SDK struct**: Read the actual `*Input` struct for the relevant operation. If both fields are optional parameters in the same struct, they are NOT mutually exclusive unless the SDK documentation or validation code explicitly says so.
 - [ ] **Not inferred by analogy**: Constraints from other resources in the same service (e.g., Cluster update patterns) do NOT apply to this resource unless verified independently.
 - [ ] **Evidence cited**: The plan must cite where the constraint was found (SDK struct, API docs URL, or error code documentation). Unsubstantiated claims are MUST FIX.
+- [ ] **Consistent with documented API semantics**: If `CONTROLLER_DIR/docs/api-semantics/README.md` exists, read its load guide and the doc(s) covering the resource or field. The plan must not contradict a documented finding (e.g. combining `DeletionProtectionEnabled` with other `UpdateTable` changes, re-sending unchanged `ProvisionedThroughput`, treating a documented transient error code as terminal) and must not reproduce an entry from a "Handling gaps (bugs to file)" section. Cite the finding id (e.g. `DDB-TABLE-164`) in the review finding.
 
 ### Custom Code Necessity
 
@@ -80,6 +81,7 @@ Read `generator.yaml` in CONTROLLER_DIR and verify every option the plan specifi
 - [ ] Wrapper field paths correct (compare against plan's Wrapper Fields section, if applicable)
 - [ ] Cross-resource references use correct path AND correct same-service/cross-service handling (same-service: NO `service_name`; cross-service: YES `service_name`)
 - [ ] Only non-default fields are configured (no redundant entries)
+- [ ] When `docs/api-semantics/` exists: error/terminal codes, update configuration and hook logic do not contradict a documented finding (see **Consistent with documented API semantics** in the Plan Review Checklist); cite finding ids in findings
 
 ### 2. Generated Code Inspection
 
@@ -131,7 +133,7 @@ Check `test/e2e/tests/test_<resource>.py` and `test/e2e/resources/<resource>.yam
 - [ ] Tests match the plan's Test Plan — for a new resource, a test file + template exist covering Create, Read, Update (if supported), Delete; for a field addition, the resource's **existing** test is extended (no duplicate file) to exercise the field on create + update-if-mutable
 - [ ] Synced condition verified after each mutating operation
 - [ ] Dual verification: both CR state AND AWS API state checked
-- [ ] Appropriate wait/timeout values (default for normal resources, extended for slow-provisioning)
+- [ ] Appropriate wait/timeout values (default for normal resources, extended for slow-provisioning); when `docs/api-semantics/` exists, waits respect the `E2E timing` ranges of the relevant doc (cite the finding id)
 - [ ] Replacement variables used for dynamic values (`$RESOURCE_NAME`, etc.)
 - [ ] Follows patterns of existing tests in the controller
 

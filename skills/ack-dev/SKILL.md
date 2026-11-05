@@ -330,6 +330,20 @@ Read each code's documentation; "sounds permanent" is not evidence.
 
 ---
 
+## API semantics documentation (`docs/api-semantics/`)
+
+Some controllers carry a `docs/api-semantics/` directory generated from the aws-api-semantics lab: per-resource documents of observed AWS API behaviors (state machines, error codes, defaults, normalization, read gaps, tag semantics, quotas, timing), each with its ACK implication and the controller's current handling status (handled / unhandled / suspected bug). The lab's findings YAML is canonical; the docs are a rendering of it, and the controller's `AGENTS.md` carries a pointer to them.
+
+**Using it:**
+- Start with `docs/api-semantics/README.md`: its load guide maps tasks (add a resource, add a field, fix a bug, review a PR, e2e work, adoption) to the files to read, and the Documents table gives line counts so you can budget reading.
+- Treat the "Handling gaps (bugs to file)" sections as known controller defects, not patterns to copy.
+- Cite finding ids (e.g. `DDB-TABLE-156`) in plans, reviews, PR descriptions and hook comments.
+- Hand-written additions go in the preserved blocks (`preserved:start` ... `preserved:end` comments) or in `docs/api-semantics/supplementary/`. Never edit generated sections; the next render overwrites them. Fix the finding in the lab instead.
+
+**Creating or refreshing it:** use the `investigate-api-semantics` skill (`skills/investigate-api-semantics/SKILL.md`). It runs the investigation for a service, an update pass after an SDK model bump / new resources, or a verify pass for one suspected behavior, and renders `docs/api-semantics/` plus the `AGENTS.md` pointer into the controller. It needs a disposable AWS account and the aws-api-semantics lab repo. If a controller has no `docs/api-semantics/`, say so in your plan and suggest running it.
+
+---
+
 ## Code Generation Quick Reference
 
 For customization patterns (skip fields, rename fields, mark immutable, custom hooks), see [code-generation.md](references/code-generation.md).
@@ -391,6 +405,7 @@ For PR ordering when building new controllers, see [pr-workflow.md](references/p
 - [Bug Fix Patterns](../../references/bug-fix-patterns.md) — 10 common root causes in closed ACK bugs and their fixes.
 - [SDK Version Resolution](../../references/sdk-version-resolution.md) — How to resolve and read the SDK model version code-gen will actually use (`ack-generate-metadata.yaml` + `go.mod`). The #1 add-field gotcha.
 - [Adding a Single Field](../../references/field-addition.md) — Task-specific supplement to the generic Implementer/Reviewer SOPs for adding one field to an existing resource. Read this when the task is a single-field addition.
+- [API Semantics Investigation](../investigate-api-semantics/SKILL.md) - The `investigate-api-semantics` skill: investigate a service's AWS API behaviors in a disposable account and generate the controller's `docs/api-semantics/`. Read when a controller lacks API semantics docs or they need refreshing.
 
 Quick search across references:
 ```bash
