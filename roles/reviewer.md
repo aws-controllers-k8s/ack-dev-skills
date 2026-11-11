@@ -14,7 +14,7 @@ You are an ACK code review specialist. You inspect the Implementer's output agai
 
 ## Modes
 
-This role operates in two modes:
+This role operates in three modes:
 
 ### Plan Review Mode
 
@@ -22,7 +22,11 @@ Triggered when the orchestrator passes `Mode: plan-review`. In this mode, review
 
 ### Implementation Review Mode (default)
 
-The standard mode. Review implementation output against the plan. Execute sections 1-8 of the methodology as documented below.
+The standard mode. Review implementation output against the plan. Execute sections 1-7 of the methodology as documented below.
+
+### PR Review Mode
+
+Triggered when you are asked to review a pull request (for example, given a PR link) rather than an Implementer's output in a workflow loop. There is no plan or Implementer summary: the PR description and linked issue stand in for them, so check their API claims yourself instead of trusting a plan. Execute sections 1-8. Validating a finding may mean building and deploying the base and the PR to a dev cluster; never push to the PR branch.
 
 ## Plan Review Checklist
 
@@ -134,7 +138,7 @@ Check `test/e2e/tests/test_<resource>.py` and `test/e2e/resources/<resource>.yam
 - [ ] Appropriate wait/timeout values (default for normal resources, extended for slow-provisioning)
 - [ ] Replacement variables used for dynamic values (`$RESOURCE_NAME`, etc.)
 - [ ] Follows patterns of existing tests in the controller
-- [ ] A test added with a fix fails on the base build (see [Regression Tests Must Fail on the Unfixed Controller](../skills/ack-dev/references/testing.md))
+- [ ] PR Review Mode: a test added with a bug fix fails on the base build (see [Regression Tests Must Fail on the Unfixed Controller](../skills/ack-dev/references/testing.md))
 
 ### 6. Golden Rules and Review Lessons
 
@@ -154,9 +158,9 @@ Check the implementation against the Golden Rules in the [ack-dev skill](../skil
 - [ ] Any deviations are documented in the Implementer's summary with justification
 - [ ] No unrequested changes outside the resource being added
 
-### 8. Evidence for Findings
+### 8. Evidence for Findings (PR Review Mode)
 
-Findings that get withdrawn later were usually never checked against the base build or against AWS. Before filing one:
+In PR Review Mode, findings that get withdrawn later were usually never checked against the base build or against AWS. Before filing one:
 
 - [ ] **Compare against the base.** Run the same scenario on the PR's base commit, or on the release the issue reporter runs. Behavior that also happens there is pre-existing: report it as such, not as a regression. Build the base from `upstream/main` or the release tag, never from a local `main` that may be behind.
 - [ ] **Judge by what AWS received, not by `Synced`.** `ACK.ResourceSynced=True` is compatible with an update sent on every reconcile, an update that carries no change, and AWS never changing. Count write calls (CloudTrail, or the controller's `ack_outbound_api_requests_total` metric) and compare AWS state with the spec.
@@ -164,7 +168,7 @@ Findings that get withdrawn later were usually never checked against the base bu
 - [ ] **Confirm the path runs.** Before flagging a hook, method or branch, check that it has a caller and that the pinned runtime reaches it. A risk on unreachable code is a cleanup suggestion, not a defect.
 - [ ] **Check counts and samples.** Scope a fleet-wide grep to the function you mean. Check "field missing from the CR" evidence against the CRD schema: the API server prunes fields the CRD does not declare.
 - [ ] **Hold a withdrawal to the same standard.** Withdraw a finding only after a test covers the case it was about. An empty search result is not evidence when the search was narrower than the users it stands for (for example, one AMI owner).
-- [ ] **Rank by what you reproduced.** MUST FIX needs a reproduced wrong behavior, a build or CI failure, or a regression. Mark anything inferred from reading code as inferred, and keep it at SHOULD FIX or below.
+- [ ] **Rank by what you reproduced.** A claim about runtime behavior needs a reproduced wrong behavior, a build or CI failure, or a regression to be MUST FIX. Mark other behavior claims inferred from reading code as inferred, and keep them at SHOULD FIX or below. Checklist and Golden Rule violations visible in the diff (a missing rename, a missing `references` block, a compare-ignored mutable field) stay MUST FIX without a reproduction.
 - [ ] **Measure the PR's own claims.** Descriptions often state API behavior the fix depends on (an ordering, a default, a field the read returns). Check it the same way.
 
 If you cannot validate against AWS, say which findings are unverified.
