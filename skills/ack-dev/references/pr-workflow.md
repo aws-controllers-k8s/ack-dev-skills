@@ -6,6 +6,8 @@
 - Prow Test Infrastructure Onboarding
 - Building Against a Specific Code-Generator Version
 - Code Review Tips
+- PR Description and Merge
+- What verify-code-gen Checks
 - Common Misses
 
 ## PR Ordering for New Controllers
@@ -103,6 +105,24 @@ RELEASE_VERSION=v<major>.<minor>.<micro> ../code-generator/scripts/build-control
 - If a maintainer pushed to your branch, commit on top; never force-push over their commits
 - When a comment questions API behavior, verify against the API (a dev account if needed) before arguing or adding code
 - Reply on each thread with the commit that addresses it
+
+## PR Description and Merge
+
+- **The description becomes the commit message.** Tide squash-merges with the PR description as the commit body and `<title> (#N)` as the title. Branch commit messages are dropped. After each follow-up commit, update the description so it describes the final behavior.
+- **`Resolves`/`Fixes`/`Closes` close the issue on merge.** Use them only when the reported failure no longer reproduces with the PR. Otherwise write `Related to`. Keep closing keywords out of commit messages: one pushed to a fork's default branch closed a community issue before its PR merged.
+- **Link community issues by full name.** In a controller repo, a bare `#N` points to that repo. Write `aws-controllers-k8s/community#N`.
+- **State what users will notice:** new IAM actions the controller now calls, existing CRs that change on the first reconcile after an upgrade, and out-of-band changes that are now reverted. CI can't catch a missing permission. `recommended-policy-test` only checks that the policy file exists and is non-empty (or that the managed policy ARN exists), and e2e runs with a broad role.
+
+## What verify-code-gen Checks
+
+It regenerates the controller with code-generator `main` and diffs the result against the PR. It ignores only build stamps: the `api_directory_checksum`, `build_date`, `build_hash`, `go_version` and `version` lines in `ack-generate-metadata.yaml`, the `ACKGenerateBuildDate` and `ACKGenerateVersion` lines in `pkg/version/version.go`, and image tags and chart versions in the Helm and kustomize files. The `version` must still have the same semver as the regenerated one and no `-dirty` suffix. Anything else fails the job, including:
+
+- `generator_config_info.file_checksum`, the sha1 of `generator.yaml`. Editing `generator.yaml` without regenerating always fails.
+- `apis/v1alpha1/generator.yaml`, which must be identical to `generator.yaml`.
+- Hand edits to generated files, including a `cmd/controller/main.go` that isn't gofmt'd.
+- `go.sum` lines that `go mod tidy` removes.
+
+An unreleased code-generator version in the stamps (`vX.Y.Z-N-g<hash>`) is not a defect while its semver matches. After a code-generator release, every PR fails with `Semver mismatch` until the controller's version-bump PR merges.
 
 ## Common Misses
 

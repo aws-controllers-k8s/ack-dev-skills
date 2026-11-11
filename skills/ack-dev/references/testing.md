@@ -3,6 +3,7 @@
 ## Contents
 - Test Types (Unit, E2E)
 - E2E Tests Must Check the Synced Condition
+- Regression Tests Must Fail on the Unfixed Controller
 - E2E Test File Structure
 - Full Test Pattern with AWS Verification
 - E2E Tests Must Include AWS API Assertions
@@ -45,6 +46,36 @@ assert k8s.wait_on_condition(ref, condition.CONDITION_TYPE_RESOURCE_SYNCED, "Tru
 ```
 
 **Required test coverage:** Create, Update (modify at least one field), Delete, Synced condition after each.
+
+### After an update, wait for a fresh reconcile
+
+`wait_on_condition` returns on its first poll if the condition already has the wanted status. Right after a patch, `ACK.ResourceSynced=True` is usually still left over from the previous reconcile, so the test reads AWS before the controller has acted. Capture the condition's timestamp before the patch and wait for a newer one:
+
+```python
+before = condition.get_synced_last_transition_time(ref)
+k8s.patch_custom_resource(ref, {"spec": {"description": "updated"}})
+assert k8s.wait_on_condition_after(
+    ref, condition.CONDITION_TYPE_RESOURCE_SYNCED, "True",
+    last_transition_after=before, wait_periods=5,
+)
+```
+
+## Regression Tests Must Fail on the Unfixed Controller
+
+Run a test added with a fix once against the base build, and confirm it fails there. Common reasons it passes anyway:
+
+- **Nothing reconciles during the test.** The default resync is 10 hours, and the reconciler ignores updates that leave `metadata.generation` unchanged. A create-then-wait test never sees a perpetual delta or an update loop, because those start on the first reconcile after a spec change. Patch a spec field first.
+- **`Synced=True` is taken as convergence.** It stays `True` while the controller re-sends an update on every reconcile, or sends one that changes nothing. After forcing a reconcile, assert that a value AWS changes on every write stays the same over a quiet window: a version or lock token, a last-modified timestamp, or the controller's write-call count.
+- **The assertion reads back what the test wrote.** Checking `cr["spec"]` after a patch passes whether or not AWS was called. Assert on the AWS response.
+- **The fixture sets the field under test.** Late-init, server defaults and unset handling only run when the spec leaves the field out. Keep one manifest that omits it.
+- **The test is never collected.** pytest only collects `test_*` functions. Check with `pytest --collect-only`.
+- **The unit test calls the helper, not the call site.** A test that calls a tag or compare helper directly misses argument-order mistakes in the generated caller. Drive `rm.sdkUpdate` or `rm.sdkFind` with a fake HTTP client instead.
+- **Only the first read is tested.** Every read after create runs with Status identifiers set. Cover that case too.
+- **The field is only changed on its own.** Also change it in the same patch as a field that goes through a different update call. A custom update path can write its own response back over the other change.
+
+### Bugs that only appear after an upgrade
+
+When a controller starts reading a field that existing CRs never declared, the first reconcile after the upgrade sees a nil-vs-value delta. A freshly created CR usually gets the value at create or from late-init, so a test that creates a new resource cannot reproduce it. To reproduce it, scale the controller to 0, patch the CR to the older shape (remove the field), and scale it back up. Adopting an existing resource with a spec that omits the field also works.
 
 ## E2E Test File Structure
 
