@@ -99,6 +99,12 @@ Or add `sdk_read_many_post_build_request` hook to set filter parameters.
 
 **Fix:** Implement or fix `ensure_tags` hook that calls the correct tag API with correct parameter order. Verify the tag diff logic computes add/remove sets correctly.
 
+**Traps that leave `Synced=True` while tags are wrong:**
+- **Double-swapped arguments.** Generated code or a hook template may call `rm.syncTags(ctx, latest, desired)` while `syncTags` is declared `(ctx, desired, latest)` and swaps them again into the helper. The two swaps cancel. "Fixing" only one of them inverts the sync, so desired tags are removed on every reconcile. Trace from the generated caller (`git grep -A4 'rm.syncTags('`) through the wrapper to the helper's parameter names.
+- **Dead tags-only guard.** In `if delta.DifferentAt("Spec.Tags") { ...syncTags... } else if !delta.DifferentExcept("Spec.Tags") { return desired, nil }`, the `else if` only fires on an empty delta, and the update is never called with one. A tags-only change, including the `services.k8s.aws/controller-version` tag that changes on every upgrade, syncs tags and also sends the full update. Make the guard its own `if` after the sync, as in Configuring Tags Support in the [ack-dev skill](../skills/ack-dev/SKILL.md).
+- **Tags never read.** If Describe doesn't return tags and no read hook fetches them, `latest.ko.Spec.Tags` is a copy of desired. A `Spec.Tags` delta never appears, so the sync never runs. See "Tag reading" in the [ack-dev skill](../skills/ack-dev/SKILL.md).
+- **The update output wipes tags.** When one Put API serves as both Create and Update and tags go through `TagResource`, the generated Update output setter sets `Spec.Tags` to nil when the response carries no tags. The runtime patches that onto the CR, and the next reconcile untags AWS. Add `set: [{method: Update, ignore: "all"}]` on `Tags`.
+
 ## Pattern 7: Adoption Fails with "Resource Not Found"
 
 **Symptoms:** Resource adoption via annotation fails. "Adopted resource not found" or fields not populated after adoption.
@@ -155,3 +161,28 @@ There is a matching `deletable.when` for delete-state guards. `updateable.when` 
 **Fix (fallback — custom):** Only if the guard needs logic beyond a status-in-list check, add a `sdk_update_pre_build_request` hook that returns a requeue.
 
 > Prefer `updateable.when` over a hand-written `sdk_update_pre_build_request` requeue helper — the generated guard is identical and needs no `hooks.go` code or unit test.
+
+## Pattern 12: Late Initialization Does Not Take Effect
+
+**Symptoms:** A field has `late_initialize`, but the spec never gets the AWS value and the same nil-vs-value delta comes back on every reconcile. Or, right after an upgrade, every existing CR sends one update.
+
+**How it runs:** In `Sync`, `lateInitializeResource` runs after `updateResource`, and only if the update succeeded. It fills fields that are nil on the object the update step returned, then patches the CR with the difference.
+
+**Root causes:**
+- **The update fails every time** (Pattern 13), so late-init is never reached.
+- **The difference is suppressed** (compare-ignored, or dropped in a compare hook). With an empty delta, `updateResource` returns the ReadOne result, which already holds the observed value. Late-init has nothing to fill, and existing CRs keep the field unset. New CRs still get it at create. That is fine when unset means "leave as is". Otherwise, let the generated compare see the difference: the first reconcile sends one update, then late-init fills the spec.
+- **A sibling field has the same default.** Read every server-defaulted field from a CR that sets only the required fields, including defaults that appear only when a feature is enabled, and late-initialize all of them.
+- **The service returns a value it won't accept back**, such as `""` where Update requires a minimum length. Late-init copies it, and the next update fails. Normalize it to nil in a `sdk_read_many_post_set_output` or `sdk_read_one_post_set_output` hook.
+
+**Note in the PR:**
+- After the upgrade, each existing CR sends one update with the field omitted before late-init fills it. If that update is costly (it creates a version or restarts something), drop the difference in `delta_post_compare` while the spec leaves the field unset. Existing CRs then keep the field unset, as described above.
+- Out-of-band changes to a late-initialized mutable field are reverted from then on.
+- Once any field is late-initialized, `LateInitialize` calls ReadOne on every reconcile, which roughly doubles read calls.
+
+## Pattern 13: An Update That Can Never Succeed
+
+**Symptoms:** The same update error on every reconcile, for a field the user never set: a request with no update fields, an empty list, or a valueless attribute rejected by the API. It often starts after an upgrade.
+
+**Root Cause:** A nil-vs-default delta routes into an update whose request is built from the spec. The spec has nothing to send, so the API rejects the request. Because the update fails, late-init never runs (Pattern 12), and the delta never closes.
+
+**Fix:** Skip the call when the desired value is nil or empty and the API rejects that, e.g. `if delta.DifferentAt("Spec.X") && len(desired.ko.Spec.X) > 0`. The update then succeeds, and late-init records the AWS value in the same reconcile. When a custom update builds a separate request per changed path, check that the request carries something before calling the API.
