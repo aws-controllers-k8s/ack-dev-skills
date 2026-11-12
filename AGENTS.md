@@ -11,6 +11,7 @@ Development guidance lives in `./ack-dev-skills/`. Install the plugin or read th
 |-------|-------------|-------------|
 | `ack-dev` | General ACK development — setting up environments, adding resources/fields, code generation, hooks, references, testing, PRs. Use when working in any ACK controller repo or code-generator. | [`skills/ack-dev/SKILL.md`](skills/ack-dev/SKILL.md) |
 | `resolve-issue` | End-to-end issue workflow — fetches an ACK community issue, triages it, classifies it, then drives it to resolution (bug fix, new resource, new field, feature investigation). Invoke with an issue number. | [`skills/resolve-issue/SKILL.md`](skills/resolve-issue/SKILL.md) |
+| `review-pr` | End-to-end PR review — fetches the diff and existing review comments, runs ACK-specific correctness checks (generator.yaml, hooks, CRD compatibility, custom update wiring, delta logic) plus general Go quality, then produces a structured review with actionable findings. Invoke with a PR URL or number. | [`skills/review-pr/SKILL.md`](skills/review-pr/SKILL.md) |
 
 ## References
 
