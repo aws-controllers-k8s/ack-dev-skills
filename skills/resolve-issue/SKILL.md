@@ -185,7 +185,7 @@ Investigate:
 3. `pkg/resource/<resource>/sdk.go` — CRUD field mappings
 4. `templates/hooks/<resource>/` — template hooks
 5. `pkg/resource/<resource>/hooks.go` — custom hooks
-6. AWS SDK model at `~/go/pkg/mod/github.com/aws/aws-sdk-go-v2/service/<name>@<version>/api_op_*.go`
+6. AWS SDK model at `$(go env GOMODCACHE)/github.com/aws/aws-sdk-go-v2/service/<name>@<version>/api_op_*.go`
 
 ### A4: Implement the fix
 
@@ -234,7 +234,7 @@ Resolves aws-controllers-k8s/community#<issue-number>
 ACK infers resources from `Create*` operations. Check the SDK:
 ```
 grep 'aws-sdk-go-v2/service/<name>' <controller-repo>/go.mod
-ls ~/go/pkg/mod/github.com/aws/aws-sdk-go-v2/service/<name>@<version>/api_op_*.go
+ls "$(go env GOMODCACHE)"/github.com/aws/aws-sdk-go-v2/service/<name>@<version>/api_op_*.go
 ```
 
 **Standalone CRD — ALL must be true:**
