@@ -124,6 +124,19 @@ claude --plugin-dir ../ack-dev-skills --agent ack-dev:add-field "add the Encrypt
 
 For a single-pass alternative that also handles GitHub issue triage (no subagents), the `resolve-issue` skill classifies `kind/new-field` issues and resolves them inline via its Phase 2C.
 
+### Investigate API semantics
+
+The `investigate-api-semantics` workflow investigates one AWS service's API semantics (state machines, error codes, defaults, tag semantics, timing) by probing it in a **disposable AWS account**, scores the findings against the controller's existing hooks, and renders `docs/api-semantics/` plus an `AGENTS.md` pointer into the controller repo. The planner, field-planner and reviewer roles read those docs when they exist. It also runs in update mode (new SDK model, new resources, aged findings) and verify mode (one suspected behavior). It requires the [aws-api-semantics](https://github.com/aws-controllers-k8s/aws-api-semantics) lab repo cloned as a sibling of this repo and the controller.
+
+See [`workflows/investigate-api-semantics.md`](workflows/investigate-api-semantics.md) and [`skills/investigate-api-semantics/SKILL.md`](skills/investigate-api-semantics/SKILL.md) for full details.
+
+#### Claude Code
+
+```bash
+cd /path/to/sns-controller
+claude --plugin-dir ../ack-dev-skills --agent ack-dev:investigate-api-semantics "investigate the sns service"
+```
+
 ## Contributing
 
 This skill is maintained by the ACK team and updated based on real development experience.
@@ -143,25 +156,42 @@ We incorporate learnings from controller development, customer feedback, and tea
 ```
 workflows/                      # Multi-phase orchestration definitions
 ├── add-resource.md             # Plan → Review → Implement → Review → E2E loop (new resource)
-└── add-field.md                # Same loop, scoped to adding a field to an existing resource
+├── add-field.md                # Same loop, scoped to adding a field to an existing resource
+└── investigate-api-semantics.md # Probe a service's API semantics → score → render docs/api-semantics/
 
 agents/                         # Claude Code subagent definitions (plugin mode)
 ├── add-resource.md             # Orchestrator — spawns resource planner/implementer/reviewer
 ├── add-field.md                # Orchestrator — spawns field planner/implementer/reviewer
+├── investigate-api-semantics.md # Orchestrator: runs the API semantics investigation phases
 ├── ack-planner.md              # Plans new-resource configuration
 ├── ack-implementer.md          # Writes code, hooks, tests (resource or field)
 ├── ack-reviewer.md             # Reviews plans and implementations (resource or field)
-└── ack-field-planner.md        # Plans a single field addition
+├── ack-field-planner.md        # Plans a single field addition
+├── semantics-hypothesizer.md    # Blind hypothesis generator (one static slice -> probe-ready hypotheses)
+├── semantics-prober.md          # Blind probe runner (shard / follow-up / doc-claims / reverify modes)
+├── semantics-explorer.md        # Blind creative explorer (one seed, time-boxed)
+└── semantics-scorer.md          # Scores findings against one ground-truth digest
 
 roles/                          # Role SOPs (tool-agnostic, used by both agents and Kiro)
 ├── planner.md                  # Resource planner methodology
 ├── field-planner.md            # Field planner methodology (research diverges most)
 ├── implementer.md              # Generic implementer methodology (resource + field)
 ├── reviewer.md                 # Generic reviewer methodology (plan + implementation)
+├── semantics-cataloger.md       # Freezes one area of controller beliefs as ground truth
+├── semantics-hypothesizer.md    # Hypotheses from a static slice until coverage is complete
+├── semantics-prober.md          # Harness probes, findings with measurements, cleanup
+├── semantics-explorer.md        # Creative round from one seed
+├── semantics-scorer.md          # Verdict per ground-truth entry, follow-up sketches, suspects
+├── semantics-consolidator.md    # Duplicates, related groups, contradictions, title fixes
+├── semantics-doc-writer.md      # Overview seeds and review of the rendered docs
 └── schemas/                    # Structured output schemas for role handoffs
     ├── plan-output.md          # New-resource plan schema
     ├── field-plan-output.md    # Add-field plan schema
-    └── review-output.md        # Reviewer output schema (shared)
+    ├── review-output.md        # Reviewer output schema (shared)
+    ├── semantics-hypothesis-item.md      # Hypothesizer item format
+    ├── semantics-prober-report.md        # Prober run report
+    ├── semantics-scorer-output.md        # Scorer match file (verdict per ground-truth entry)
+    └── semantics-consolidation-output.md # Consolidator decision file
 
 skills/ack-dev/                 # Agent Skill directory
 ├── SKILL.md                    # Core instructions and common workflows
@@ -176,6 +206,14 @@ skills/ack-dev/                 # Agent Skill directory
     ├── contributing-codegen.md # Contributing to the code-generator
     ├── pr-workflow.md          # PR ordering and review guidance
     └── troubleshooting.md      # Common issues, debugging, resources
+
+skills/investigate-api-semantics/ # API semantics investigation skill (needs a disposable AWS account)
+├── SKILL.md                    # Intake, phases, `semantics` commands, sizing rules, update/verify modes
+└── references/
+    ├── probe-families.md       # The 16 probe families, targets, yield and cost class
+    ├── finding-schema.md       # Finding fields, controlled vocabulary, good/bad examples
+    ├── update-mode.md          # Re-running for a new SDK model, new resources, aged findings
+    └── pitfalls.md             # Operational failure modes and the rules they produced
 
 skills/resolve-issue/           # Issue triage and resolution skill
 └── SKILL.md                    # End-to-end issue workflow (triage → classify → fix)

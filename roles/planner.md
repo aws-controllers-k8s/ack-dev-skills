@@ -51,6 +51,7 @@ Check for:
 - **Error codes**: What does the Read operation return for a non-existent resource? (not always 404/ResourceNotFoundException — some return AccessDeniedException)
 - **Wrapper fields**: Does Create/Update wrap fields in a nested object? Does Read return fields in a nested object?
 - **Fields outside wrapper**: If wrapper is used, are there fields at the top level that won't be auto-mapped?
+- **Documented API semantics**: If `CONTROLLER_DIR/docs/api-semantics/` exists (Step 5), prefer its documented findings over guesses for error codes, update granularity (e.g. one-change-per-call Update APIs), async states and timing.
 
 ### Step 5: Review Existing Controller Context
 
@@ -58,6 +59,7 @@ Read the following in CONTROLLER_DIR:
 - `generator.yaml` — current resource configurations, ignore lists, conventions used
 - `templates/hooks/` — existing hook patterns in this controller
 - Other resource configs in generator.yaml — what patterns does this controller follow?
+- `docs/api-semantics/README.md`: if it exists, read its load guide, then `service.md` and the document(s) whose Documents-table row lists RESOURCE (for a not-yet-implemented resource, also its scope-verdict entry in the Resources table). These are observed AWS behaviors with their ACK implication and current handling status. Treat each document's "Handling gaps (bugs to file)" section as known controller defects; do NOT copy that behavior into the new resource. Cite finding ids (e.g. `DDB-TABLE-156`) wherever a finding drives a decision: in the plan's non-standard pattern sections (Error Handling, Implementation Notes) and in Custom Hooks Required. If the directory does not exist, note in Implementation Notes that no API semantics investigation exists for this service and suggest running the `investigate-api-semantics` skill.
 
 ### Step 6: Identify Cross-Resource References
 

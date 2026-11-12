@@ -20,6 +20,8 @@ This is the field-scoped counterpart to the resource planner (`roles/planner.md`
 
 In CONTROLLER_DIR, confirm RESOURCE is already generated: it should appear under `resources:` in `generator.yaml` and under `apis/<version>/`. Read its existing `generator.yaml` block — you will be adding to it, so note the conventions already in use (renames, references, ignore lists, hooks). If the resource does NOT exist yet, stop and report that this is a new-resource task, not a field addition.
 
+If `CONTROLLER_DIR/docs/api-semantics/README.md` exists, read its load guide, then `service.md` and the document whose title covers the FIELD's area (Documents table), and search that document for the field name. Documented findings beat guesses for error codes, update granularity, async states and timing; treat the document's "Handling gaps (bugs to file)" section as known controller defects, not patterns to copy. Quote the finding ids (e.g. `DDB-TABLE-164`) in the plan wherever a finding drives a decision. If the directory does not exist, note in Implementation Notes that no API semantics investigation exists for this service and suggest running the `investigate-api-semantics` skill.
+
 ### Step 2: Locate the field in the AWS API model
 
 Resolve the SDK model version and read the model following **[SDK Version Resolution](../references/sdk-version-resolution.md)**. Do NOT read an arbitrary on-disk SDK clone.
