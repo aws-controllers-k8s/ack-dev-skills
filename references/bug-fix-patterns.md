@@ -6,13 +6,14 @@ Reference for the most frequent root causes found in closed ACK bugs. When inves
 
 ## Pattern 1: Infinite Reconcile Due to JSON/Whitespace/Ordering Differences
 
-**Symptoms:** Controller constantly reconciles detecting diffs on the same field. Diff shows the same semantic value with different formatting (whitespace, key ordering, redundant fields). Common with IAM policy documents, JSON strings, and list fields.
+**Symptoms:** Controller constantly reconciles detecting diffs on the same field. Diff shows the same semantic value with different formatting (whitespace, key ordering, letter case, redundant fields). Common with IAM policy documents, JSON strings, and list fields.
 
 **Root Cause:** AWS API returns a normalized/reformatted version of a field that differs textually but is semantically identical.
 
 **Fix:**
 - **IAM policy fields:** Add `is_iam_policy: true` in `generator.yaml` → triggers `IAMPolicyDocumentEqual` comparator
 - **Unordered lists:** `compare.is_ignored: true` + `delta_pre_compare` hook with custom normalization
+- **Case-normalized strings:** some services accept an enum-like value in any case and return it in one case (API Gateway stores an integration's `httpMethod` upper-cased). In `delta_pre_compare`, when both are set and `strings.EqualFold(*a.ko.Spec.X, *b.ko.Spec.X)`, copy the desired value into latest (`b.ko.Spec.X = a.ko.Spec.X`). A case-only difference then produces no update, a real change still does, and the spec keeps what the user wrote.
 - **Server-added defaults:** `late_initialize: {}` on those fields
 
 **Example (sns-controller PR #111):**
