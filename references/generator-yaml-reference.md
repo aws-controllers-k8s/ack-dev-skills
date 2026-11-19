@@ -47,7 +47,7 @@ prefix_config:           # Override field path prefixes
 
 | Option | Type | Purpose |
 |--------|------|---------|
-| `reconcile.requeue_on_success_seconds` | int | Re-sync interval after successful reconcile |
+| `reconcile.requeue_on_success_seconds` | int | Resync interval for every CR of this kind after a successful reconcile. It replaces `--reconcile-default-resync-seconds` (10 hours by default) in both directions; only `--reconcile-resource-resync-seconds` for this kind overrides it. Each resync costs a full read (ReadOne, often several Describe or List calls), so a short interval on a kind with many CRs can hit API throttling |
 
 ### Synced Condition
 
