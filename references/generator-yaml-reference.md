@@ -325,6 +325,8 @@ fields:
 
 `ignore` can be: `true` (ignore resource setter), `"from"` (same), `"to"` (ignore SDK setter), `"all"` (both).
 
+For a list, `from:` copies one member out of each element and does not check it for nil. If the response omits that member for an element, the spec list gets a `null` item. The CRD renders the list as `items: {type: string}` without `nullable`, so the API server rejects the spec patch after create and the CR never syncs. Drop nil items in the post-set hooks of the operations that set the field (for example `sdk_create_post_set_output` and `sdk_read_one_post_set_output`), keeping a nil list nil. To find the generated sites: `grep -rn -A2 'var f[0-9a-z]*elem \*string' pkg/resource/*/sdk.go | grep -E 'elem = f[0-9a-z]+iter\.[A-Za-z]+$'`.
+
 ### Print Column
 
 ```yaml

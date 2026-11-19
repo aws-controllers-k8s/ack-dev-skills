@@ -53,8 +53,8 @@ For each CRUD operation (`api_op_*.go`), note:
 | K8s-irrelevant Create input fields? | Add to `ignore.field_paths` |
 | Non-standard 404? | Add `exceptions.errors.404.code` |
 | Terminal errors? | Add `exceptions.terminal_codes` — only codes fixable by a Spec edit |
-| Delete-only API options? | Annotation, absent ⇒ service default |
-| Immutable fields? | Mark `is_immutable: true` |
+| Delete-only API options? | Annotation, absent ⇒ service default. Check that the service accepts the member omitted: FSx `DeleteDataRepositoryAssociation` rejects a missing `DeleteDataInFileSystem` although the SDK marks it optional, so there the controller sends the documented non-destructive default (`false`) |
+| Immutable fields? | Mark `is_immutable: true`. If the service normalizes the value, keep the desired spelling in the post-set hooks (bug-fix-patterns Pattern 1) |
 | Fields to show in kubectl get? | Add `print.name` |
 | Periodic re-sync needed? | Add `reconcile.requeue_on_success_seconds` |
 
