@@ -307,6 +307,10 @@ resources:
 
 Read each code's documentation; "sounds permanent" is not evidence.
 
+A Terminal CR is not requeued. It is reconciled again only after a spec change (a new `metadata.generation`) or a controller restart. Annotation-only edits don't count: the runtime watches with `GenerationChangedPredicate` and adds `AnnotationChangedPredicate` only when the `IgnoreFieldDrift` feature gate is on. An error caused by an annotation value, such as an invalid delete-time option, is therefore not retried when the user fixes the annotation. Return a requeue error for it instead, or say in the message that a spec edit is needed after the fix.
+
+To retry an error whose code is in `terminal_codes` (for example, only while one message is returned), don't wrap the AWS error in the requeue error. `ackrequeue.NeededAfter(err, d)` keeps it reachable through `Unwrap`, the generated `terminalAWSError` finds it with `errors.As`, and the CR goes Terminal anyway. Return `ackrequeue.NeededAfter(errors.New("<what is wrong and how to fix it>"), ackrequeue.DefaultRequeueAfterDuration)`. That text replaces the AWS message in the condition, so make it name the fix.
+
 **Custom hooks** are for cases where declarative config isn't enough (e.g., complex conditional logic, extra API calls).
 
 1. Create hook template: `templates/hooks/<resource>/sdk_<hook_point>.go.tpl`
