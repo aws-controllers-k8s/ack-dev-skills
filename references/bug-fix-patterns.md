@@ -21,6 +21,8 @@ Policy:
   is_iam_policy: true
 ```
 
+**Union members the CRD doesn't have.** For a list of tagged unions, the generated read code switches on the SDK member type and appends one element per item, with no default case. A member that generator.yaml ignores, or one newer than the pinned SDK (`*types.UnknownUnionMember`), matches no case and is appended as an empty element `{}`. If such an item exists in AWS (set out of band or by another tool), the observed list has an extra `{}` that desired never has: a delta on every resync, and an update that sends only the declared items and removes the other one. When reviewing a PR that adds or un-ignores union members, check which members are still ignored. Dropping empty elements in `sdk_read_one_post_set_output` stops the delta, but the next update still replaces the whole list; say so in the release notes.
+
 ## Pattern 2a: Field Ignored in Delta but Missing Custom Compare Hook
 
 **Symptoms:** User changes a field value, but no update is propagated. Controller logs show no delta detected. Resource stays synced.
@@ -54,6 +56,8 @@ if ackcompare.HasNilDifference(a.ko.Spec.AllocatedStorage, b.ko.Spec.AllocatedSt
 3. `compare.is_ignored` last. No field may be both compare-ignored and mutable.
 
 Check whether `set` config or an existing hook already covers it before adding one.
+
+**References inside a list.** Generated read code rebuilds a list from the response, so a `*Ref` inside a list element (`Spec.Configs[].AccessPointRef`) comes back nil next to the resolved ARN, while desired has both. The whole list then differs on every resync, and the controller sends an update each time. The runtime restores declared refs on Create and Update output only when they are reached through structs (runtime `pkg/types/reference_manager.go`; list elements are aws-controllers-k8s/community#3110). Until that is fixed, copy each declared ref from desired onto the matching observed element in `sdk_read_one_post_set_output`, matching by a stable key, not by index. Do the same in `sdk_create_post_set_output` and `sdk_update_post_set_output` when their output rebuilds the list, or the ref is dropped from the spec on write-back. Test the hook wiring through `rm.sdkFind` with a fake `HTTPClient`: a unit test of the helper alone still passes when the generator.yaml hook entry is removed.
 
 ## Pattern 3: Unchanged Field Sent in Update Causes API Error
 
@@ -186,3 +190,11 @@ There is a matching `deletable.when` for delete-state guards. `updateable.when` 
 **Root Cause:** A nil-vs-default delta routes into an update whose request is built from the spec. The spec has nothing to send, so the API rejects the request. Because the update fails, late-init never runs (Pattern 12), and the delta never closes.
 
 **Fix:** Skip the call when the desired value is nil or empty and the API rejects that, e.g. `if delta.DifferentAt("Spec.X") && len(desired.ko.Spec.X) > 0`. The update then succeeds, and late-init records the AWS value in the same reconcile. When a custom update builds a separate request per changed path, check that the request carries something before calling the API.
+
+## Pattern 14: List Sync Removes the Working Item
+
+**Symptoms:** After an update, a healthy child item (an attachment, an address, a target) is removed and a pending or failed one is kept. The CR stays Synced, but AWS reports the resource degraded.
+
+**Root Cause:** A custom sync matches each desired list entry to one observed item and removes the rest. It assumes the API lists one item per logical value. Many APIs accept a second request for a value that already exists (sometimes written in another text form) and list both, often with the second one pending or failed. When the matcher picks the first or the most exact match, it can keep the failed item and remove the working one.
+
+**Fix:** When several observed items match a desired entry, prefer the healthy one (attached, active, in service) over pending or failed ones, in every matching pass. Cover it with a unit case where a healthy item and a failed duplicate match the same entry. Don't assume the API rejects duplicates until you have tried one against a real resource.
