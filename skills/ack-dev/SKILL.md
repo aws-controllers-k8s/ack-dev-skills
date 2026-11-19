@@ -218,6 +218,8 @@ resources:
 
    The second check (`DifferentExcept`) short-circuits the rest of the update logic if ONLY tags changed — tag updates use their own API and don't go through the standard Update operation.
 
+   `DifferentExcept` is safe here because `Spec.Tags` adds one difference. It returns true as soon as the delta holds more differences than the paths you pass, before it compares paths (runtime `pkg/compare/delta.go`), and a nested struct adds one difference per changed member. So `DifferentExcept("Spec.<Struct>")` reports "something else changed" when two members of that struct changed. For a nested path, check the other fields with `DifferentAt` instead.
+
 4. **Wire the hook template in generator.yaml:**
 
    ```yaml
