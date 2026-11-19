@@ -8,6 +8,7 @@
 - Code Review Tips
 - PR Description and Merge
 - What verify-code-gen Checks
+- What crd-compat-check Checks
 - Common Misses
 
 ## PR Ordering for New Controllers
@@ -123,6 +124,10 @@ It regenerates the controller with code-generator `main` and diffs the result ag
 - `go.sum` lines that `go mod tidy` removes.
 
 An unreleased code-generator version in the stamps (`vX.Y.Z-N-g<hash>`) is not a defect while its semver matches. After a code-generator release, every PR fails with `Semver mismatch` until the controller's version-bump PR merges.
+
+## What crd-compat-check Checks
+
+`<service>-crd-compat-check` (and code-generator's `make check-crd-compatibility`) runs `ack-generate crd-compat-check`, which compares only the type, properties, items, required list, enum and pattern of each schema node (kro's `pkg/graph/crd/compat`). It reports `no changes` when a PR adds, removes or changes a CEL rule (`x-kubernetes-validations`, for example from `is_immutable: true`) or another limit such as a length or range. Review those by hand. A transition rule such as `self == oldSelf` runs only on updates where both the old and the new value exist, so stored objects are not re-checked, but later edits and controller write-backs that change the field are rejected.
 
 ## Common Misses
 
