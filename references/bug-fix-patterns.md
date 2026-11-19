@@ -14,6 +14,7 @@ Reference for the most frequent root causes found in closed ACK bugs. When inves
 - **IAM policy fields:** Add `is_iam_policy: true` in `generator.yaml` → triggers `IAMPolicyDocumentEqual` comparator
 - **Unordered lists:** `compare.is_ignored: true` + `delta_pre_compare` hook with custom normalization
 - **Server-added defaults:** `late_initialize: {}` on those fields
+- **Normalized immutable fields:** if the service rewrites an `is_immutable` value (FSx appends `/` to a `DataRepositoryPath`), writing the Create, Update or read output back changes an immutable field, and the API server rejects the patch ("Value is immutable once set"). Late-init is lost and an update with no change is sent on every sync. Keep the user's spelling in the `sdk_create_post_set_output`, `sdk_update_post_set_output` and `sdk_read_*_post_set_output` hooks when the two values are equivalent (fsx-controller PR #8).
 
 **Example (sns-controller PR #111):**
 ```yaml
@@ -173,11 +174,13 @@ There is a matching `deletable.when` for delete-state guards. `updateable.when` 
 - **The difference is suppressed** (compare-ignored, or dropped in a compare hook). With an empty delta, `updateResource` returns the ReadOne result, which already holds the observed value. Late-init has nothing to fill, and existing CRs keep the field unset. New CRs still get it at create. That is fine when unset means "leave as is". Otherwise, let the generated compare see the difference: the first reconcile sends one update, then late-init fills the spec.
 - **A sibling field has the same default.** Read every server-defaulted field from a CR that sets only the required fields, including defaults that appear only when a feature is enabled, and late-initialize all of them.
 - **The service returns a value it won't accept back**, such as `""` where Update requires a minimum length. Late-init copies it, and the next update fails. Normalize it to nil in a `sdk_read_many_post_set_output` or `sdk_read_one_post_set_output` hook.
+- **The default is valid only with another field's value.** AutoScaling reports `SpotInstancePools: 2`, which is valid only with the `lowest-price` Spot allocation strategy. Once late-init copies it into the spec, every update sends it, so changing the strategy fails with a validation error. Check each server default's documented conditions before late-initializing it. For a conditional default, leave the field (and any parent struct) out of `late_initialize`, and have the read hook report it only when the spec declares it.
 
 **Note in the PR:**
 - After the upgrade, each existing CR sends one update with the field omitted before late-init fills it. If that update is costly (it creates a version or restarts something), drop the difference in `delta_post_compare` while the spec leaves the field unset. Existing CRs then keep the field unset, as described above.
 - Out-of-band changes to a late-initialized mutable field are reverted from then on.
 - Once any field is late-initialized, `LateInitialize` calls ReadOne on every reconcile, which roughly doubles read calls.
+- If the field also has a `references` block, late-init writes the ID field into the spec. A later client-side `kubectl apply` that adds the `...Ref`/`...Refs` field keeps the late-initialized ID field, because the user's manifest never owned it. Reference resolution then fails on every reconcile with "both resource reference wrapper and ID cannot be used together", and nothing is sent. The user has to remove the ID field explicitly (`kubectl patch --type=json -p '[{"op":"remove","path":"/spec/<field>"}]'`). Mention this in the PR and the field's docs, or leave the referenced field out of `late_initialize`.
 
 ## Pattern 13: An Update That Can Never Succeed
 
