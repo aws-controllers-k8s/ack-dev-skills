@@ -118,6 +118,13 @@ Or add `sdk_read_many_post_build_request` hook to set filter parameters.
 - Guard status-field checks with nil: `if ko.Status.ID != nil { ... }`
 - Verify adoption populates all fields needed for ReadOne
 
+**Deriving the identifier from spec fields.** When the read API takes only an ARN (IAM `GetPolicy`), a fix may build the ARN from spec fields in `sdk_read_one_pre_build_request`, so that a CR with no ARN in Status finds an existing resource. The derived ARN then drives the not-managed check, `adopt-or-create`, update and delete, so review it as an identity check:
+- Derive only from input the create API would accept. IAM paths must begin and end with `/`: path `/team` plus name `p` derives `policy/teamp`, a different policy, which `adopt-or-create` then adopts and deleting the CR deletes. Otherwise skip the lookup and keep the create error.
+- Compare the API's uniqueness rules with the derivation. IAM policy names are unique per account regardless of case and path, so a same-name policy at another path isn't found by the derived ARN, and the create keeps failing with `EntityAlreadyExists`. Check whether the lookup ignores case: if it does, an adopted CR whose name differs only in case shows a `Spec.Name` delta on every resync.
+- Check what Status shows on the Terminal "not managed" path. If `sdkFind` copies the found ARN into Status, a Terminal CR publishes a resource it doesn't own.
+- A CR that has a finalizer but no ARN in Status (for example, because the status write after create failed) now binds to any resource with that name, for update and delete too. That is usually the intended fix, but say so in the PR.
+- CRs that looped on create with the old build go Terminal on the first reconcile after the upgrade, and need a spec edit or a controller restart to retry.
+
 ## Pattern 8: Deletion Succeeds in K8s but AWS Resource Persists
 
 **Symptoms:** CR deleted (finalizer removed) but AWS resource still exists. Batch delete APIs return 200 with errors in response body.
