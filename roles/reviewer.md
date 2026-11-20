@@ -80,7 +80,7 @@ Read `generator.yaml` in CONTROLLER_DIR and verify every option the plan specifi
 - [ ] Primary key correctly identified with `is_primary_key: true` (new resource)
 - [ ] **Field renames cover ALL operations where the field appears** — this is the #1 source of bugs. Cross-reference the plan's Renames table: every operation listed there must have a corresponding rename entry in generator.yaml. Check Create, Read, Update, Delete, AND List.
 - [ ] Immutable fields correctly marked with `is_immutable: true`
-- [ ] `pre_delete_sync` / `compare.pre_delete_include`: every guard the normal compare applies to the field (in a `delta_pre_compare` hook) is repeated in the update hooks, because the pre-delete delta skips compare hooks (generator.yaml reference, "Pre-Delete Sync"). The PR says that out-of-band changes to the field are reverted at delete time. An e2e test deletes a protected resource, checks that it still exists, turns protection off in the spec, and checks that it's gone
+- [ ] `pre_delete_sync` / `compare.pre_delete_include`: the PR says that out-of-band changes to the field are reverted at delete time (generator.yaml reference, "Pre-Delete Sync"). An e2e test deletes a protected resource, checks that it still exists, turns protection off in the spec, and checks that it's gone
 - [ ] Error codes match what the plan documented, not guessed defaults (new resource)
 - [ ] Wrapper field paths correct (compare against plan's Wrapper Fields section, if applicable)
 - [ ] Cross-resource references use correct path AND correct same-service/cross-service handling (same-service: NO `service_name`; cross-service: YES `service_name`)
