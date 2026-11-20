@@ -33,6 +33,9 @@ For each CRUD operation (`api_op_*.go`), note:
 - State machine enums → `synced.when`
 - Tag support → `tags.ignore: true` if none
 - Non-standard patterns (parent ARN, composite keys, non-standard 404)
+- Point-in-time resources (backups, snapshots, images) that outlive their source. Two behaviors need a line in the PR and the resource docs:
+  - If the source field has a `references` block and the user deletes the source CR, the reference can no longer resolve. Every later spec edit, tags included, is held with `ACK.ReferencesResolved=Unknown` and no Synced condition (delete still works). Tell users to replace the `...Ref` field with the direct ID field before deleting the source CR.
+  - If the resource is deleted outside ACK, the controller sees NotFound and creates it again (unless the CR was adopted): a new AWS-assigned ID and a new copy taken now, not the original. If the source is gone too, the create fails and is retried indefinitely.
 
 ## Configuration Decision Table
 

@@ -38,6 +38,13 @@
 - Verify AWS credentials have required permissions
 - Check for AWS service quotas or limits
 
+**CR goes Terminal "Resource already exists" although the controller created the resource:** the runtime removes the finalizer when `rm.Create` returns an AWS error, and the next reconcile finds the resource with no finalizer. (If the CR matched a different resource, see bug-fix-patterns Pattern 5.) Find the error that fired:
+- An AWS call made inside `sdkCreate` after the create (tags, attributes, sub-resources) failed. Controllers generated with runtime and code-generator v0.66.0 or later mark these as post-create errors and keep the finalizer. A create through `custom_implementation` returns before that wrapping and needs it by hand.
+- The create call failed although the resource was created, because two controller pods ran it. Leader election is off by default (`leaderElection.enabled: false`), so two replicas, or the old and new pod during a rolling update, reconcile at the same time. An SDK retry after a lost response looks the same. The losing call gets a conflict error such as `EntityAlreadyExists`.
+- Something else removed the finalizer, such as GitOps tooling.
+
+The Terminal CR is not requeued. To bring the resource under management, enable the `ResourceAdoption` feature gate, add the `services.k8s.aws/adoption-policy` annotation, and make a spec edit; the annotation alone doesn't trigger a reconcile.
+
 **Field not updating:**
 - Check if field is immutable in AWS API
 - Verify field is in CRD spec (not status)
