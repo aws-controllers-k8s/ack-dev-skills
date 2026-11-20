@@ -60,6 +60,8 @@ assert k8s.wait_on_condition_after(
 )
 ```
 
+**`Synced=True` doesn't mean AWS has filled in every value.** Without `synced.when`, the generated `IsSynced` returns true, so a CR reports Synced as soon as AWS accepts the create or associate calls, while child items (attachments, addresses, targets) may still be creating with empty AWS-assigned fields. A test that snapshots those fields right after Synced and compares against them later fails whenever AWS is slow. Before taking the snapshot, poll the AWS API, with a bounded number of attempts, until every field the test compares is set.
+
 ## Regression Tests Must Fail on the Unfixed Controller
 
 Run a test added with a fix once against the base build, and confirm it fails there. Common reasons it passes anyway:
