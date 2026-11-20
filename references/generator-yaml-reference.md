@@ -130,6 +130,10 @@ pre_delete_sync:
   compare_all: true          # Include ALL spec fields in pre-delete delta (even ignored ones)
 ```
 
+`pre_delete_sync.compare_all` or a field's `compare.pre_delete_include` makes the runtime compare the spec with AWS just before the delete call and, if they differ, call `rm.Update` with a delta that holds only those fields. Things to know:
+- The update runs through the full `sdkUpdate`, hooks included, on a copy of the observed resource that takes only the differing fields from the spec. Resources without `omit_unchanged_fields` send every field of that copy, so check that the Modify API accepts them.
+- The spec wins at delete time. If the field was changed outside the controller, the pre-delete sync writes the spec value back first. For a deletion-protection flag, protection the user turned off in the console is turned on again and the delete is refused. Say so in the PR and the release notes.
+
 ### Update Conditions Custom Method
 
 ```yaml
@@ -157,7 +161,7 @@ unpack_attributes_map:
 
 | Option | Type | Purpose |
 |--------|------|---------|
-| `update_operation.custom_method_name` | string | Replace `sdkUpdate()` with custom method |
+| `update_operation.custom_method_name` | string | Replace `sdkUpdate()` with custom method. No `sdk_update_*` hook and no `updateable.when` guard is rendered for the resource, so that logic must live in the custom method |
 | `update_operation.omit_unchanged_fields` | bool | Only include changed fields in update request |
 | `update_operation.only_set_unchanged_fields` | bool | Only set response fields for changed fields |
 | `find_operation.custom_method_name` | string | Replace `sdkFind()` with custom method |
