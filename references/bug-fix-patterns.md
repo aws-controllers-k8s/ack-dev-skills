@@ -21,8 +21,6 @@ Policy:
   is_iam_policy: true
 ```
 
-**Union members the CRD doesn't have.** For a list of tagged unions, the generated read code switches on the SDK member type and appends one element per item, with no default case. A member that generator.yaml ignores, or one newer than the pinned SDK (`*types.UnknownUnionMember`), matches no case and is appended as an empty element `{}`. If such an item exists in AWS (set out of band or by another tool), the observed list has an extra `{}` that desired never has: a delta on every resync, and an update that sends only the declared items and removes the other one. When reviewing a PR that adds or un-ignores union members, check which members are still ignored. Dropping empty elements in `sdk_read_one_post_set_output` stops the delta, but the next update still replaces the whole list; say so in the release notes.
-
 ## Pattern 2a: Field Ignored in Delta but Missing Custom Compare Hook
 
 **Symptoms:** User changes a field value, but no update is propagated. Controller logs show no delta detected. Resource stays synced.
@@ -57,7 +55,7 @@ if ackcompare.HasNilDifference(a.ko.Spec.AllocatedStorage, b.ko.Spec.AllocatedSt
 
 Check whether `set` config or an existing hook already covers it before adding one.
 
-**References inside a list.** Generated read code rebuilds a list from the response, so a `*Ref` inside a list element (`Spec.Configs[].AccessPointRef`) comes back nil next to the resolved ARN, while desired has both. The whole list then differs on every resync, and the controller sends an update each time. The runtime restores declared refs on Create and Update output only when they are reached through structs (runtime `pkg/types/reference_manager.go`; list elements are aws-controllers-k8s/community#3110). Until that is fixed, copy each declared ref from desired onto the matching observed element in `sdk_read_one_post_set_output`, matching by a stable key, not by index. Do the same in `sdk_create_post_set_output` and `sdk_update_post_set_output` when their output rebuilds the list, or the ref is dropped from the spec on write-back. Test the hook wiring through `rm.sdkFind` with a fake `HTTPClient`: a unit test of the helper alone still passes when the generator.yaml hook entry is removed.
+**References inside a list** are not restored after a read, so a list whose elements hold a `*Ref` differs on every resync (aws-controllers-k8s/community#3110). Until that is fixed, copy each declared ref from desired onto the matching observed element, matched by a stable key rather than by index, in the read, create and update `post_set_output` hooks.
 
 ## Pattern 3: Unchanged Field Sent in Update Causes API Error
 
