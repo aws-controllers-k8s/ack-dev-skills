@@ -11,6 +11,7 @@ Development guidance lives in `./ack-dev-skills/`. Install the plugin or read th
 |-------|-------------|-------------|
 | `ack-dev` | General ACK development — setting up environments, adding resources/fields, code generation, hooks, references, testing, PRs. Use when working in any ACK controller repo or code-generator. | [`skills/ack-dev/SKILL.md`](skills/ack-dev/SKILL.md) |
 | `resolve-issue` | End-to-end issue workflow — fetches an ACK community issue, triages it, classifies it, then drives it to resolution (bug fix, new resource, new field, feature investigation). Invoke with an issue number. | [`skills/resolve-issue/SKILL.md`](skills/resolve-issue/SKILL.md) |
+| `investigate-api-semantics` | API semantics investigation: probes one AWS service's API behaviors (state machines, error codes, defaults, tags, timing) in a disposable AWS account, scores them against the controller's hooks, and renders `docs/api-semantics/` into the controller repo. Use when a controller has no API semantics docs, after an SDK model bump, or to verify one suspected behavior. Needs the [aws-api-semantics](https://github.com/aws-controllers-k8s/aws-api-semantics) lab repo as a sibling. | [`skills/investigate-api-semantics/SKILL.md`](skills/investigate-api-semantics/SKILL.md) |
 
 ## References
 

@@ -321,7 +321,7 @@ If wrong, adjust generator.yaml and regenerate.
 
 ### B8: Add custom code (if needed)
 
-Only when: API quirks, multi-call updates, ReadOne post-processing, custom comparison.
+Only when: API behaviors not handled by default generation, multi-call updates, ReadOne post-processing, custom comparison.
 Templates in `templates/hooks/<resource_name>/<hook_name>.go.tpl`
 Implementations in `pkg/resource/<resource_name>/hooks.go`
 
