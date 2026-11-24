@@ -108,10 +108,9 @@ RELEASE_VERSION=v<major>.<minor>.<micro> ../code-generator/scripts/build-control
 
 ## PR Description and Merge
 
-- **The description becomes the commit message.** Tide squash-merges with the PR description as the commit body and `<title> (#N)` as the title. Branch commit messages are dropped. After each follow-up commit, update the description so it describes the final behavior.
-- **`Resolves`/`Fixes`/`Closes` close the issue on merge.** Use them only when the reported failure no longer reproduces with the PR. Otherwise write `Related to`. Each issue needs its own keyword: `Fixes aws-controllers-k8s/community#1 and aws-controllers-k8s/community#2` links only #1, so write `Fixes aws-controllers-k8s/community#1, fixes aws-controllers-k8s/community#2`. To see which issues a PR will close, query `closingIssuesReferences`: `gh api graphql -f query='{repository(owner:"aws-controllers-k8s",name:"<repo>"){pullRequest(number:<N>){closingIssuesReferences(first:10){nodes{number repository{nameWithOwner}}}}}}'`. Keep closing keywords out of commit messages: one pushed to a fork's default branch closed a community issue before its PR merged.
-- **Link community issues by full name.** In a controller repo, a bare `#N` points to that repo. Write `aws-controllers-k8s/community#N`.
-- **State what users will notice:** new IAM actions the controller now calls, existing CRs that change on the first reconcile after an upgrade, and out-of-band changes that are now reverted. CI can't catch a missing permission. `recommended-policy-test` only checks that the policy file exists and is non-empty (or that the managed policy ARN exists), and e2e runs with a broad role.
+Write and update PR descriptions with [pr-description.md](pr-description.md). It owns the description rules: how merge uses the description, closing keywords, issue links, and what users will notice.
+
+- **Keep closing keywords out of commit messages.** One pushed to a fork's default branch closed a community issue before its PR merged.
 
 ## What verify-code-gen Checks
 

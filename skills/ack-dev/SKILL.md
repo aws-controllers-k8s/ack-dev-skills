@@ -385,6 +385,7 @@ For PR ordering when building new controllers, see [pr-workflow.md](references/p
 - [Running E2E Tests](references/running-e2e-tests.md) — Read when running e2e tests locally with KIND via test-infra
 - [Contributing to Code-Generator](references/contributing-codegen.md) — Read when making changes to the code-generator itself
 - [PR Workflow](references/pr-workflow.md) — Read when planning PR order for new controllers or cutting releases
+- [PR Description](references/pr-description.md) — Read when opening a PR and after each revision push, to write or update its description
 - [Troubleshooting](references/troubleshooting.md) — Read when debugging build failures, controller issues, or test problems
 - [generator.yaml Reference](../../references/generator-yaml-reference.md) — Complete documentation of every `generator.yaml` option (top-level, resource-level, operations, field-level, renames, exceptions, hooks). The authority for "is there a declarative option for this?"
 - [New Resource Checklist](../../references/new-resource-checklist.md) — Feasibility checks, API investigation steps, and the **Configuration Decision Table** (which field-level option applies when).

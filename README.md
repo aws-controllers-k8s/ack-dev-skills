@@ -175,6 +175,7 @@ skills/ack-dev/                 # Agent Skill directory
     ├── testing.md              # E2E test patterns and file structure
     ├── contributing-codegen.md # Contributing to the code-generator
     ├── pr-workflow.md          # PR ordering and review guidance
+    ├── pr-description.md       # How to write PR descriptions for reviewers
     └── troubleshooting.md      # Common issues, debugging, resources
 
 skills/resolve-issue/           # Issue triage and resolution skill

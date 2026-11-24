@@ -160,7 +160,7 @@ Check the implementation against the Golden Rules in the [ack-dev skill](../skil
 - [ ] Every terminal code is fixable by editing the Spec, and none is a catch-all
 - [ ] Delete-time options are annotations; absent sends nothing
 - [ ] No mutable field is compare-ignored; restore hooks touch only write-only or create-only members (bug-fix-patterns Pattern 2b)
-- [ ] A field that becomes compared (a new read-path mapping, a removed `compare.is_ignored`, a setter moved to another field) changes existing CRs. Check the observed value's format against what users write (case, ordering, defaults; bug-fix-patterns Pattern 1), a CR that leaves the field unset (Pattern 13; testing.md "Bugs that only appear after an upgrade"), and that the PR body states what changes on the first reconcile after the upgrade (pr-workflow.md "State what users will notice")
+- [ ] A field that becomes compared (a new read-path mapping, a removed `compare.is_ignored`, a setter moved to another field) changes existing CRs. Check the observed value's format against what users write (case, ordering, defaults; bug-fix-patterns Pattern 1), a CR that leaves the field unset (Pattern 13; testing.md "Bugs that only appear after an upgrade"), and that the PR body states what changes on the first reconcile after the upgrade ([pr-description.md](../skills/ack-dev/references/pr-description.md), slot 3 "Behaviour changes")
 - [ ] All stuttering fields renamed (top-level, nested, Status); printer columns, hooks and e2e use the new JSON names
 - [ ] Every ACK-managed ID/ARN field, nested and list included, has `references`
 - [ ] Comments match the code; no overstated guarantees; cited upstream issues are open and accurate
