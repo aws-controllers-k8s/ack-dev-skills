@@ -57,6 +57,8 @@ if ackcompare.HasNilDifference(a.ko.Spec.AllocatedStorage, b.ko.Spec.AllocatedSt
 
 Check whether `set` config or an existing hook already covers it before adding one.
 
+**References inside a list** are not restored after a read, so a list whose elements hold a `*Ref` differs on every resync (aws-controllers-k8s/community#3110). Until that is fixed, copy each declared ref from desired onto the matching observed element, matched by a stable key rather than by index, in the read, create and update `post_set_output` hooks.
+
 ## Pattern 3: Unchanged Field Sent in Update Causes API Error
 
 **Symptoms:** Modifying any field triggers a terminal error about a *different* field. Error like "Modification of X is not supported" even though X wasn't changed.
@@ -197,3 +199,11 @@ There is a matching `deletable.when` for delete-state guards. `updateable.when` 
 **Root Cause:** A nil-vs-default delta routes into an update whose request is built from the spec. The spec has nothing to send, so the API rejects the request. Because the update fails, late-init never runs (Pattern 12), and the delta never closes.
 
 **Fix:** Skip the call when the desired value is nil or empty and the API rejects that, e.g. `if delta.DifferentAt("Spec.X") && len(desired.ko.Spec.X) > 0`. The update then succeeds, and late-init records the AWS value in the same reconcile. When a custom update builds a separate request per changed path, check that the request carries something before calling the API.
+
+## Pattern 14: List Sync Removes the Working Item
+
+**Symptoms:** After an update, a healthy child item (an attachment, an address, a target) is removed and a pending or failed one is kept. The CR stays Synced, but AWS reports the resource degraded.
+
+**Root Cause:** A custom sync matches each desired list entry to one observed item and removes the rest. It assumes the API lists one item per logical value. Many APIs accept a second request for a value that already exists (sometimes written in another text form) and list both, often with the second one pending or failed. When the matcher picks the first or the most exact match, it can keep the failed item and remove the working one.
+
+**Fix:** When several observed items match a desired entry, prefer the healthy one (attached, active, in service) over pending or failed ones, in every matching pass. Cover it with a unit case where a healthy item and a failed duplicate match the same entry. Don't assume the API rejects duplicates until you have tried one against a real resource.
