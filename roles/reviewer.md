@@ -80,9 +80,9 @@ Read `generator.yaml` in CONTROLLER_DIR and verify every option the plan specifi
 - [ ] Primary key correctly identified with `is_primary_key: true` (new resource)
 - [ ] **Primary key changed on an existing resource** (`is_primary_key` moved, or the ReadOne/Delete identifier changed): the new key decides which AWS resource each existing CR is bound to after the upgrade. Check against the released build, live if you can:
   - **Values that used to be mutable and ignored.** If the new key field was not `is_immutable` before, released versions accepted edits to it and kept managing the original resource by the old key. After the upgrade the controller looks up the edited value: it creates a second resource and orphans the first, or it binds to an unmanaged resource that has that value, overwrites its tags and deletes it with the CR. Adding `is_immutable` in the same PR doesn't help, because the edited value is already stored. Keep looking up by the old identifier while Status has it, or compare the found identifier with Status and refuse to switch.
-  - **Adoption annotations.** `adoption-fields` keys follow the primary key, so annotations written with the old key go Terminal `required field missing: <new key>`. Accept both keys in a `pre_populate_resource_from_annotation` hook, or say so in the PR body.
-  - **Create conflicts.** Once the lookup by the new key finds a resource the CR didn't create, a CR without an adoption policy goes Terminal `Resource already exists` where it used to retry the create. This is usually correct, but it is a visible change for the PR body.
-  - **Issues fixed as a side effect**, such as a not-found code that only matched lookups by the new key. List them in the PR body with closing keywords.
+  - **Adoption annotations.** `adoption-fields` keys follow the primary key, so annotations written with the old key go Terminal `required field missing: <new key>`. Accept both keys in a `pre_populate_resource_from_annotation` hook, or say so in the PR body ([pr-description.md](../skills/ack-dev/references/pr-description.md) slot 3).
+  - **Create conflicts.** Once the lookup by the new key finds a resource the CR didn't create, a CR without an adoption policy goes Terminal `Resource already exists` where it used to retry the create. This is usually correct, but it is a visible change for the PR body ([pr-description.md](../skills/ack-dev/references/pr-description.md) slot 3).
+  - **Issues fixed as a side effect**, such as a not-found code that only matched lookups by the new key. List them in the PR body with closing keywords ([pr-description.md](../skills/ack-dev/references/pr-description.md) "Issue line").
 - [ ] **Field renames cover ALL operations where the field appears** — this is the #1 source of bugs. Cross-reference the plan's Renames table: every operation listed there must have a corresponding rename entry in generator.yaml. Check Create, Read, Update, Delete, AND List.
 - [ ] Immutable fields correctly marked with `is_immutable: true`
 - [ ] Error codes match what the plan documented, not guessed defaults (new resource)
@@ -109,8 +109,8 @@ Verify:
 
 When the PR bumps the service SDK (`go.mod` `service/<svc>`, `aws_service_sdk_version`), check the regenerated code of every resource, not only the one the PR targets:
 - [ ] `git diff <base> -- pkg/resource/*/sdk.go`: list each resource whose update payload (`newUpdateRequestPayload`) or create/read path now sets a field it didn't set before. A new member on an `Update*Input` shape that maps to an existing spec field is sent on every update from then on.
-- [ ] For each such field, read the API docs for when Update accepts it. If it is accepted only in a narrow case (SageMaker `UpdateDomain.VpcId` is only for adding a VPC to a domain created without one), a CR whose value differs from AWS goes from a silent no-op to a validation error that can block every other update. Either ignore the member on the input shape (`ignore.field_paths: [Update<Res>Input.<Field>]`, which keeps the Create and Describe mappings) or state the change in the PR body.
-- [ ] Other user-visible changes the bump brings, such as CRD fields that are no longer required and new Status fields, are listed in the PR body.
+- [ ] For each such field, read the API docs for when Update accepts it. If it is accepted only in a narrow case (SageMaker `UpdateDomain.VpcId` is only for adding a VPC to a domain created without one), a CR whose value differs from AWS goes from a silent no-op to a validation error that can block every other update. Either ignore the member on the input shape (`ignore.field_paths: [Update<Res>Input.<Field>]`, which keeps the Create and Describe mappings) or state the change in the PR body ([pr-description.md](../skills/ack-dev/references/pr-description.md) slot 3).
+- [ ] Other user-visible changes the bump brings, such as CRD fields that are no longer required and new Status fields, are listed in the PR body ([pr-description.md](../skills/ack-dev/references/pr-description.md) slot 3).
 
 ### 3. Custom Hooks Review (if applicable)
 
@@ -124,7 +124,7 @@ For each hook in `templates/hooks/`:
   - `sdk_delete_*` → `r` (NOT `latest` — that causes nil pointer panic)
 - [ ] Uses **renamed** field names (e.g., `r.ko.Spec.Name` not `r.ko.Spec.BackupVaultName`)
 - [ ] No nil pointer risks (especially in delete hooks)
-- [ ] `sdk_delete_*` hooks that change `r.ko.Spec` in place (for example, setting `Enabled = false` and calling Update before Delete): the runtime patches the CR with whatever `rm.Delete` changed, so the change is written to the user's spec and stays there while the resource waits to be deleted, including after a failed delete. Change a copy (`r.ko.DeepCopy()`) for the request if the spec should stay as the user wrote it; otherwise say in the PR that the CR shows the hook's value during deletion
+- [ ] `sdk_delete_*` hooks that change `r.ko.Spec` in place (for example, setting `Enabled = false` and calling Update before Delete): the runtime patches the CR with whatever `rm.Delete` changed, so the change is written to the user's spec and stays there while the resource waits to be deleted, including after a failed delete. Change a copy (`r.ko.DeepCopy()`) for the request if the spec should stay as the user wrote it; otherwise say in the PR body that the CR shows the hook's value during deletion ([pr-description.md](../skills/ack-dev/references/pr-description.md) slot 3)
 - [ ] Logic matches the plan's Custom Hooks table
 - [ ] Hook is referenced in generator.yaml under `hooks:`
 
@@ -160,7 +160,7 @@ Check the implementation against the Golden Rules in the [ack-dev skill](../skil
 - [ ] Every terminal code is fixable by editing the Spec, and none is a catch-all
 - [ ] Delete-time options are annotations; absent sends nothing
 - [ ] No mutable field is compare-ignored; restore hooks touch only write-only or create-only members (bug-fix-patterns Pattern 2b)
-- [ ] A field that becomes compared (a new read-path mapping, a removed `compare.is_ignored`, a setter moved to another field) changes existing CRs. Check the observed value's format against what users write (case, ordering, defaults; bug-fix-patterns Pattern 1), a CR that leaves the field unset (Pattern 13; testing.md "Bugs that only appear after an upgrade"), and that the PR body states what changes on the first reconcile after the upgrade (pr-workflow.md "State what users will notice")
+- [ ] A field that becomes compared (a new read-path mapping, a removed `compare.is_ignored`, a setter moved to another field) changes existing CRs. Check the observed value's format against what users write (case, ordering, defaults; bug-fix-patterns Pattern 1), a CR that leaves the field unset (Pattern 13; testing.md "Bugs that only appear after an upgrade"), and that the PR body states what changes on the first reconcile after the upgrade ([pr-description.md](../skills/ack-dev/references/pr-description.md), slot 3 "Behaviour changes")
 - [ ] All stuttering fields renamed (top-level, nested, Status); printer columns, hooks and e2e use the new JSON names
 - [ ] Every ACK-managed ID/ARN field, nested and list included, has `references`
 - [ ] Comments match the code; no overstated guarantees; cited upstream issues are open and accurate

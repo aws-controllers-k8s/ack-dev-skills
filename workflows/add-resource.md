@@ -109,7 +109,7 @@ Report to the user:
 6. **Known gaps**: from the plan, with any existing or suggested upstream issues
 7. **Next steps**:
    - Squash commits
-   - Open PR (or push to existing branch)
+   - Open PR (or push to existing branch), with the description written per [pr-description.md](../skills/ack-dev/references/pr-description.md)
 
 ### Phase 5: PR Review Iteration
 
