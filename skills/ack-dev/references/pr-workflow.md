@@ -108,9 +108,7 @@ RELEASE_VERSION=v<major>.<minor>.<micro> ../code-generator/scripts/build-control
 
 ## PR Description and Merge
 
-Write and update PR descriptions with [pr-description.md](pr-description.md). It owns the description rules: how merge uses the description, closing keywords, issue links, and what users will notice.
-
-- **Keep closing keywords out of commit messages.** One pushed to a fork's default branch closed a community issue before its PR merged.
+Write and update PR descriptions with [pr-description.md](pr-description.md). It owns the description rules: how merge uses the description, closing keywords (including in commit messages), issue links, and what users will notice.
 
 ## What verify-code-gen Checks
 

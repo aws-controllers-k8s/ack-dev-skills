@@ -118,7 +118,7 @@ Report to the user:
 5. **E2E test status**: Pass/fail, which tests ran, any remaining failures
 6. **Next steps**:
    - Squash commits
-   - Open PR (or push to existing branch) — new fields warrant a minor semver bump
+   - Open PR (or push to existing branch), with the description written per [pr-description.md](../skills/ack-dev/references/pr-description.md) — new fields warrant a minor semver bump
 
 ## Claude Code Execution
 
